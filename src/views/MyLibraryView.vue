@@ -1,12 +1,24 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { capyGamesApi, type CapyUserGame, type GameStatus } from '@/api/capygames'
+import { capyGamesApi, type CapyUserGame } from '@/api/capygames'
+import { useGridMode } from '@/composables/useGridMode'
 import GameCard from '@/components/GameCard.vue'
 import GameStatusModal from '@/components/GameStatusModal.vue'
-import { Search, Plus, SlidersHorizontal, RefreshCw, Trophy, Gamepad2 } from 'lucide-vue-next'
+import {
+  Search,
+  Plus,
+  SlidersHorizontal,
+  RotateCw,
+  Trophy,
+  Gamepad2,
+  X,
+  Grid2x2,
+  LayoutGrid
+} from 'lucide-vue-next'
 
 const router = useRouter()
+const { gridCols, setGridCols } = useGridMode()
 
 const library = ref<CapyUserGame[]>([])
 const isLoading = ref(true)
@@ -20,10 +32,10 @@ const selectedUserGame = ref<CapyUserGame | null>(null)
 const tabs = [
   { id: 'all', label: 'Todos' },
   { id: 'playing', label: 'Jogando' },
-  { id: 'plan_to_play', label: 'A Jogar' },
+  { id: 'plan_to_play', label: 'Na Fila' },
   { id: 'completed', label: 'Zerados' },
   { id: 'mastered', label: 'Platinas', icon: Trophy },
-  { id: 'on_hold', label: 'Pausa' },
+  { id: 'on_hold', label: 'Em Pausa' },
   { id: 'dropped', label: 'Abandonados' }
 ]
 
@@ -49,17 +61,14 @@ async function fetchLibrary() {
 
 const filteredGames = computed(() => {
   return library.value.filter(ug => {
-    // Filtro por tab
     if (activeTab.value !== 'all' && ug.status !== activeTab.value) {
       return false
     }
 
-    // Filtro por plataforma
     if (selectedPlatform.value !== 'all' && ug.platform !== selectedPlatform.value) {
       return false
     }
 
-    // Filtro por busca de texto
     if (searchQuery.value.trim()) {
       const q = searchQuery.value.toLowerCase()
       const titleMatch = ug.game.title.toLowerCase().includes(q)
@@ -100,95 +109,133 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="library-view container">
-    <!-- Top Bar -->
+  <div class="library-page">
     <header class="page-header">
-      <div class="header-left">
-        <div class="logo-badge">
-          <Gamepad2 :size="20" class="logo-icon" />
-          <h1 class="logo-text">CapyGames</h1>
-        </div>
-        <p class="header-subtitle">Minha Biblioteca Gamer</p>
-      </div>
+      <div class="container">
+        <div class="header-top">
+          <h1 class="header-title mono">Minha Biblioteca</h1>
 
-      <div class="header-actions">
-        <button class="icon-btn" title="Atualizar" @click="fetchLibrary">
-          <RefreshCw :size="18" :class="{ spin: isLoading }" />
-        </button>
-        <button class="add-btn" @click="router.push('/discover')">
-          <Plus :size="18" />
-          <span>Buscar Jogos</span>
-        </button>
+          <div class="header-actions">
+            <!-- Toggle Grid 2 ou 4 colunas -->
+            <div class="grid-toggle" role="group" aria-label="Modo de visualização">
+              <button
+                type="button"
+                class="grid-toggle-btn mono"
+                :class="{ active: gridCols === 2 }"
+                title="Grid de 2 colunas"
+                @click="setGridCols(2)"
+              >
+                <Grid2x2 :size="15" />
+                <span>2</span>
+              </button>
+              <button
+                type="button"
+                class="grid-toggle-btn mono"
+                :class="{ active: gridCols === 4 }"
+                title="Grid de 4 colunas"
+                @click="setGridCols(4)"
+              >
+                <LayoutGrid :size="15" />
+                <span>4</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              class="refresh-btn"
+              :class="{ spinning: isLoading }"
+              :disabled="isLoading"
+              title="Recarregar biblioteca"
+              @click="fetchLibrary"
+            >
+              <RotateCw :size="18" />
+            </button>
+
+            <button type="button" class="add-pill-btn" @click="router.push('/discover')">
+              <Plus :size="16" />
+              <span>Buscar</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Barra de Busca e Plataforma -->
+        <div class="filters-row">
+          <div class="search-bar">
+            <Search :size="18" class="search-icon" />
+            <input
+              v-model="searchQuery"
+              type="search"
+              class="search-input"
+              placeholder="Filtrar por nome ou plataforma..."
+            />
+            <button v-if="searchQuery" type="button" class="clear-btn" @click="searchQuery = ''">
+              <X :size="16" />
+            </button>
+          </div>
+
+          <div v-if="availablePlatforms.length > 0" class="platform-filter">
+            <SlidersHorizontal :size="14" class="filter-icon" />
+            <select v-model="selectedPlatform" class="platform-select">
+              <option value="all">Plataformas</option>
+              <option v-for="p in availablePlatforms" :key="p" :value="p">{{ p }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Abas de Status (estilo CapyShowTime) -->
+        <div class="tabs-container">
+          <button
+            v-for="t in tabs"
+            :key="t.id"
+            type="button"
+            class="tab-btn"
+            :class="{ active: activeTab === t.id }"
+            @click="activeTab = t.id"
+          >
+            <component :is="t.icon" v-if="t.icon" :size="14" />
+            <span>{{ t.label }}</span>
+            <span class="tab-count mono">{{ getCount(t.id) }}</span>
+          </button>
+        </div>
       </div>
     </header>
 
-    <!-- Filters Bar (Search & Platforms) -->
-    <div class="filters-section">
-      <div class="search-box">
-        <Search :size="18" class="search-icon" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          class="search-input"
-          placeholder="Filtrar por nome ou plataforma..."
+    <main class="container page-body">
+      <!-- Loading State -->
+      <div v-if="isLoading && library.length === 0" class="loading-state">
+        <div class="spinner"></div>
+        <p>Carregando sua biblioteca...</p>
+      </div>
+
+      <!-- Empty State -->
+      <div v-else-if="filteredGames.length === 0" class="empty-state fade-in">
+        <Gamepad2 :size="48" class="empty-icon" />
+        <h3 class="empty-title">Nenhum jogo aqui ainda</h3>
+        <p v-if="searchQuery" class="empty-desc">Nenhum título corresponde a "{{ searchQuery }}".</p>
+        <p v-else-if="activeTab !== 'all'" class="empty-desc">Você não possui jogos nesta categoria ainda.</p>
+        <p v-else class="empty-desc">Adicione jogos para organizar seu backlog, horas jogadas e platinas!</p>
+
+        <router-link to="/discover" class="btn-primary">
+          <Search :size="18" />
+          <span>Buscar Jogos</span>
+        </router-link>
+      </div>
+
+      <!-- Games Grid (2 ou 4 colunas) -->
+      <div
+        v-else
+        class="games-grid fade-in"
+        :class="gridCols === 4 ? 'grid-cols-4' : 'grid-cols-2'"
+      >
+        <GameCard
+          v-for="ug in filteredGames"
+          :key="ug.id"
+          :user-game="ug"
+          :compact="gridCols === 4"
+          @click="handleCardClick"
         />
       </div>
-
-      <div v-if="availablePlatforms.length > 0" class="platform-filter">
-        <SlidersHorizontal :size="14" class="text-dim" />
-        <select v-model="selectedPlatform" class="platform-select">
-          <option value="all">Todas Plataformas</option>
-          <option v-for="p in availablePlatforms" :key="p" :value="p">{{ p }}</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Status Tabs -->
-    <div class="tabs-scroll">
-      <button
-        v-for="t in tabs"
-        :key="t.id"
-        class="tab-btn"
-        :class="{ active: activeTab === t.id }"
-        @click="activeTab = t.id"
-      >
-        <component :is="t.icon" v-if="t.icon" :size="14" class="tab-icon" />
-        <span>{{ t.label }}</span>
-        <span class="tab-count mono">{{ getCount(t.id) }}</span>
-      </button>
-    </div>
-
-    <!-- Loading State -->
-    <div v-if="isLoading && library.length === 0" class="loading-state">
-      <RefreshCw :size="32" class="spin text-accent" />
-      <p>Carregando sua biblioteca...</p>
-    </div>
-
-    <!-- Empty State -->
-    <div v-else-if="filteredGames.length === 0" class="empty-state">
-      <div class="empty-icon-box">
-        <Gamepad2 :size="48" class="text-dim" />
-      </div>
-      <h3>Nenhum jogo encontrado</h3>
-      <p v-if="searchQuery">Nenhum título corresponde a "{{ searchQuery }}"</p>
-      <p v-else-if="activeTab !== 'all'">Você não possui jogos nesta categoria ainda.</p>
-      <p v-else>Sua biblioteca está vazia! Explore o catálogo e monte seu backlog.</p>
-
-      <button class="btn-primary mt-4" @click="router.push('/discover')">
-        <Plus :size="18" />
-        <span>Explorar Catálogo</span>
-      </button>
-    </div>
-
-    <!-- Games Grid -->
-    <div v-else class="games-grid fade-in">
-      <GameCard
-        v-for="ug in filteredGames"
-        :key="ug.id"
-        :user-game="ug"
-        @click="handleCardClick"
-      />
-    </div>
+    </main>
 
     <!-- Modal de Edição de Status / Avaliação -->
     <GameStatusModal
@@ -202,41 +249,31 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.library-view {
-  padding-top: 16px;
-  padding-bottom: 24px;
+.library-page {
+  padding-bottom: 90px;
 }
 
 .page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
+  padding: calc(var(--safe-top) + 16px) 0 12px;
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
-.logo-badge {
+.header-top {
   display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 8px;
+  margin-bottom: 14px;
 }
 
-.logo-icon {
-  color: var(--color-accent);
-}
-
-.logo-text {
-  font-size: 1.4rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #f5f3ff 0%, #c084fc 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.header-subtitle {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  font-weight: 500;
+.header-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .header-actions {
@@ -245,85 +282,136 @@ onMounted(() => {
   gap: 8px;
 }
 
-.icon-btn {
-  padding: 8px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface);
+.grid-toggle {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 3px;
+  gap: 2px;
+}
+
+.grid-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: var(--radius-full);
   color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.grid-toggle-btn:hover {
+  color: var(--text-main);
+}
+
+.grid-toggle-btn.active {
+  background-color: var(--color-accent);
+  color: #0c0a14;
+}
+
+.refresh-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--text-muted);
+  transition: all 0.2s;
+  flex-shrink: 0;
 }
 
-.icon-btn:hover {
-  background: var(--bg-surface-hover);
-  color: var(--text-main);
+.refresh-btn:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
 }
 
-.add-btn {
-  display: flex;
+.refresh-btn.spinning svg {
+  animation: spin 0.8s linear infinite;
+  color: var(--color-accent);
+}
+
+.add-pill-btn {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--color-primary);
-  color: #fff;
+  background-color: var(--color-accent);
+  color: #0c0a14;
   padding: 8px 14px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
   font-size: 0.82rem;
-  font-weight: 600;
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+  font-weight: 700;
   transition: all 0.2s ease;
 }
 
-.add-btn:hover {
-  background: var(--color-primary-light);
+.add-pill-btn:hover {
+  background-color: var(--color-accent-hover);
   transform: translateY(-1px);
 }
 
-.filters-section {
+.filters-row {
   display: flex;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
-.search-box {
+.search-bar {
   flex: 1;
-  position: relative;
   display: flex;
   align-items: center;
-}
-
-.search-icon {
-  position: absolute;
-  left: 12px;
-  color: var(--text-dim);
-}
-
-.search-input {
-  width: 100%;
-  background: var(--bg-surface);
+  background-color: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 10px 14px 10px 38px;
-  color: var(--text-main);
-  font-size: 0.88rem;
-  outline: none;
+  border-radius: var(--radius-full);
+  padding: 0 14px;
+  gap: 8px;
   transition: border-color 0.2s ease;
 }
 
-.search-input:focus {
+.search-bar:focus-within {
   border-color: var(--color-accent);
+}
+
+.search-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.search-input {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 10px 0;
+  color: var(--text-main);
+  font-size: 0.9rem;
+  outline: none;
+  min-width: 0;
+}
+
+.clear-btn {
+  color: var(--text-muted);
+  padding: 4px;
+  display: flex;
+  align-items: center;
 }
 
 .platform-filter {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: var(--bg-surface);
+  background-color: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 0 10px;
+  border-radius: var(--radius-full);
+  padding: 0 14px;
+}
+
+.filter-icon {
+  color: var(--text-muted);
 }
 
 .platform-select {
@@ -331,145 +419,113 @@ onMounted(() => {
   border: none;
   color: var(--text-muted);
   font-size: 0.82rem;
+  font-weight: 600;
   outline: none;
   cursor: pointer;
-  padding: 8px 0;
+  padding: 9px 0;
 }
 
-.tabs-scroll {
+.tabs-container {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding-bottom: 12px;
-  margin-bottom: 16px;
+  padding-bottom: 4px;
   scrollbar-width: none;
 }
 
-.tabs-scroll::-webkit-scrollbar {
+.tabs-container::-webkit-scrollbar {
   display: none;
 }
 
 .tab-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 14px;
-  border-radius: var(--radius-full);
-  background: var(--bg-surface);
+  padding: 8px 16px;
+  background-color: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
   color: var(--text-muted);
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 0.84rem;
+  font-weight: 500;
   white-space: nowrap;
-  transition: all 0.2s ease;
+  transition: all 0.2s;
 }
 
 .tab-btn:hover {
-  background: var(--bg-surface-hover);
   color: var(--text-main);
 }
 
 .tab-btn.active {
-  background: var(--color-primary);
-  border-color: #c084fc;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.4);
+  background-color: var(--color-accent);
+  color: #0c0a14;
+  border-color: var(--color-accent);
+  font-weight: 700;
 }
 
 .tab-count {
-  font-size: 0.75rem;
-  opacity: 0.8;
-  background: rgba(0, 0, 0, 0.2);
-  padding: 1px 6px;
+  font-size: 0.72rem;
+  opacity: 0.85;
+  background: rgba(0, 0, 0, 0.18);
+  padding: 1px 7px;
   border-radius: var(--radius-full);
+}
+
+.page-body {
+  padding-top: 24px;
 }
 
 .games-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
 }
 
-@media (min-width: 500px) {
-  .games-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
+.games-grid.grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.games-grid.grid-cols-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (min-width: 640px) {
+  .games-grid.grid-cols-2 {
+    gap: 20px;
   }
-}
-
-@media (min-width: 720px) {
-  .games-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 18px;
+  .games-grid.grid-cols-4 {
+    gap: 16px;
   }
 }
 
 .loading-state,
 .empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
   text-align: center;
-  gap: 12px;
+  padding: 60px 0;
   color: var(--text-muted);
 }
 
-.empty-icon-box {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: var(--bg-surface);
-  border: 1px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 8px;
+.empty-icon {
+  color: var(--color-accent);
+  margin-bottom: 12px;
 }
 
-.empty-state h3 {
-  color: var(--text-main);
+.empty-title {
   font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--text-main);
 }
 
-.empty-state p {
-  font-size: 0.88rem;
+.empty-desc {
+  font-size: 0.85rem;
+  margin-bottom: 20px;
   max-width: 320px;
-}
-
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--color-primary);
-  color: #fff;
-  padding: 10px 20px;
-  border-radius: var(--radius-sm);
-  font-size: 0.88rem;
-  font-weight: 600;
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
-  transition: all 0.2s ease;
-}
-
-.btn-primary:hover {
-  background: var(--color-primary-light);
-}
-
-.mt-4 {
-  margin-top: 16px;
-}
-
-.spin {
-  animation: spin 1s linear infinite;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
-}
-
-.text-accent {
-  color: var(--color-accent);
 }
 </style>

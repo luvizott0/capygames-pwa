@@ -406,10 +406,10 @@ function setScore(score: number) {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 10px 8px;
+  padding: 10px 10px;
   background: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
   color: var(--text-muted);
   font-size: 0.82rem;
   font-weight: 600;
@@ -460,8 +460,8 @@ function setScore(score: number) {
 .form-input {
   background: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  padding: 11px 16px;
   color: var(--text-main);
   font-size: 0.9rem;
   outline: none;
@@ -480,13 +480,13 @@ function setScore(score: number) {
 
 .field-icon {
   position: absolute;
-  left: 12px;
+  left: 14px;
   color: var(--text-dim);
   pointer-events: none;
 }
 
 .with-left-icon {
-  padding-left: 36px;
+  padding-left: 38px;
   width: 100%;
 }
 
@@ -507,15 +507,15 @@ function setScore(score: number) {
 .ratings-bar {
   display: grid;
   grid-template-columns: repeat(10, 1fr);
-  gap: 4px;
+  gap: 5px;
 }
 
 .rating-box {
-  padding: 8px 0;
+  padding: 9px 0;
   text-align: center;
   background: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-size: 0.82rem;
   font-weight: 700;
@@ -534,10 +534,10 @@ function setScore(score: number) {
 }
 
 .rating-box.exact {
-  background: var(--color-primary);
-  border-color: #c084fc;
-  color: #fff;
-  box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #0c0a14;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.5);
 }
 
 .modal-footer {
@@ -558,8 +558,10 @@ function setScore(score: number) {
 
 .btn-delete {
   color: var(--color-danger);
-  padding: 8px;
-  border-radius: var(--radius-sm);
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-full);
+  background: rgba(239, 68, 68, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -567,38 +569,41 @@ function setScore(score: number) {
 }
 
 .btn-delete:hover {
-  background: rgba(239, 68, 68, 0.15);
+  background: rgba(239, 68, 68, 0.2);
 }
 
 .btn-cancel {
-  padding: 9px 16px;
+  padding: 10px 18px;
   color: var(--text-muted);
   font-size: 0.88rem;
   font-weight: 600;
-  border-radius: var(--radius-sm);
-  transition: color 0.2s ease;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  transition: all 0.2s ease;
 }
 
 .btn-cancel:hover {
   color: var(--text-main);
+  border-color: var(--color-accent);
 }
 
 .btn-save {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 9px 20px;
-  background: var(--color-primary);
-  color: #fff;
+  padding: 10px 22px;
+  background: var(--color-accent);
+  color: #0c0a14;
   font-size: 0.88rem;
-  font-weight: 600;
-  border-radius: var(--radius-sm);
+  font-weight: 700;
+  border-radius: var(--radius-full);
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.35);
 }
 
 .btn-save:hover:not(:disabled) {
-  background: var(--color-primary-light);
+  background: var(--color-accent-hover);
   transform: translateY(-1px);
 }
 

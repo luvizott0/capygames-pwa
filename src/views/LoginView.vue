@@ -246,8 +246,8 @@ onMounted(async () => {
   width: 100%;
   background: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 12px 14px 12px 42px;
+  border-radius: var(--radius-full);
+  padding: 12px 16px 12px 42px;
   color: var(--text-main);
   font-size: 0.95rem;
   outline: none;
@@ -263,19 +263,19 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: var(--color-primary);
-  color: #fff;
-  padding: 12px 20px;
-  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: #0c0a14;
+  padding: 13px 22px;
+  border-radius: var(--radius-full);
   font-size: 0.95rem;
   font-weight: 700;
   margin-top: 8px;
-  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.4);
+  box-shadow: 0 4px 16px rgba(168, 85, 247, 0.35);
   transition: all 0.2s ease;
 }
 
 .btn-submit-login:hover:not(:disabled) {
-  background: var(--color-primary-light);
+  background: var(--color-accent-hover);
   transform: translateY(-1px);
 }
 
@@ -322,10 +322,10 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 8px 12px;
   background: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
   color: var(--text-main);
   font-size: 0.82rem;
   font-weight: 600;

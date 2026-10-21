@@ -3,23 +3,26 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { capyGamesApi, type GamerProfile } from '@/api/capygames'
 import { useAuthStore } from '@/stores/auth'
+import { useGridMode } from '@/composables/useGridMode'
+import GameCard from '@/components/GameCard.vue'
 import ConnectModal from '@/components/ConnectModal.vue'
 import {
   Trophy,
   Gamepad2,
   Clock,
-  Star,
   RefreshCw,
   LogOut,
   Users,
-  ExternalLink,
   ChevronRight,
-  Sparkles
+  ArrowLeft,
+  Grid2x2,
+  LayoutGrid
 } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const { gridCols, setGridCols } = useGridMode()
 
 const targetUserId = computed(() => {
   return route.params.id ? Number(route.params.id) : (authStore.user?.id || 0)
@@ -122,76 +125,117 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="profile-view container">
+  <div class="profile-page">
     <div v-if="isLoading && !profile" class="loading-state">
-      <RefreshCw :size="32" class="spin text-accent" />
+      <div class="spinner"></div>
       <p>Carregando perfil gamer...</p>
     </div>
 
-    <div v-else-if="profile" class="fade-in">
-      <!-- User Header Card -->
-      <header class="profile-header">
-        <div class="header-main">
+    <div v-else-if="profile" class="container page-body fade-in">
+      <!-- Top Back Bar quando visualizando perfil de amigo -->
+      <div v-if="!isMyProfile" class="friend-nav-bar">
+        <button type="button" class="back-btn" @click="router.back()">
+          <ArrowLeft :size="18" />
+          <span>Voltar</span>
+        </button>
+      </div>
+
+      <!-- Card Principal de Perfil (estilo CapyShowTime) -->
+      <div class="profile-card">
+        <div class="user-header">
           <img
             :src="profile.user.avatar_url || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + profile.user.username"
-            class="profile-avatar"
+            :alt="profile.user.name"
+            class="avatar-lg"
           />
-          <div class="header-titles">
-            <h1 class="user-display-name">{{ profile.user.name }}</h1>
-            <p class="user-username">@{{ profile.user.username }}</p>
+          <h2 class="user-name">{{ profile.user.name }}</h2>
+          <span class="user-username">@{{ profile.user.username }}</span>
+        </div>
+
+        <!-- Contador de Horas Jogadas (estilo CapyShowTime Time-Spent Banner) -->
+        <div class="time-spent-banner">
+          <Clock :size="24" class="clock-icon" />
+          <div class="time-spent-info">
+            <span class="time-spent-label">Tempo estimado em jogos</span>
+            <span class="time-spent-value mono">
+              {{ profile.stats.total_hours }} horas
+            </span>
           </div>
         </div>
 
-        <button v-if="isMyProfile" class="btn-logout" @click="handleLogout" title="Sair da conta">
-          <LogOut :size="18" />
-        </button>
-      </header>
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+          <div class="stat-box">
+            <span class="stat-val mono">{{ profile.stats.total_games }}</span>
+            <span class="stat-label">Na Biblioteca</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-val mono">{{ profile.stats.completed }}</span>
+            <span class="stat-label">Zerados</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-val mono">{{ profile.stats.mastered }}</span>
+            <span class="stat-label">Platinas 100%</span>
+          </div>
+        </div>
+      </div>
 
       <!-- Feedback message -->
       <div v-if="syncMsg" class="alert-banner fade-in">
         {{ syncMsg }}
       </div>
 
-      <!-- Gamer Stats Grid -->
-      <section class="stats-grid">
-        <div class="stat-card">
-          <span class="stat-icon-wrapper purple">
-            <Gamepad2 :size="20" />
-          </span>
-          <span class="stat-num mono">{{ profile.stats.total_games }}</span>
-          <span class="stat-label">Biblioteca</span>
+      <!-- Jogos Recentes do Perfil (com opção Grid 2 ou 4) -->
+      <section v-if="profile.recent_games && profile.recent_games.length > 0" class="section-card">
+        <div class="section-header-row">
+          <div>
+            <h2 class="section-title mono">
+              <Gamepad2 :size="18" class="text-accent" />
+              <span>Jogos Recentes</span>
+            </h2>
+          </div>
+
+          <div class="grid-toggle" role="group" aria-label="Modo de visualização">
+            <button
+              type="button"
+              class="grid-toggle-btn mono"
+              :class="{ active: gridCols === 2 }"
+              @click="setGridCols(2)"
+            >
+              <Grid2x2 :size="14" />
+              <span>2</span>
+            </button>
+            <button
+              type="button"
+              class="grid-toggle-btn mono"
+              :class="{ active: gridCols === 4 }"
+              @click="setGridCols(4)"
+            >
+              <LayoutGrid :size="14" />
+              <span>4</span>
+            </button>
+          </div>
         </div>
 
-        <div class="stat-card">
-          <span class="stat-icon-wrapper green">
-            <Trophy :size="20" />
-          </span>
-          <span class="stat-num mono">{{ profile.stats.completed }}</span>
-          <span class="stat-label">Zerados</span>
-        </div>
-
-        <div class="stat-card">
-          <span class="stat-icon-wrapper gold">
-            <Sparkles :size="20" />
-          </span>
-          <span class="stat-num mono">{{ profile.stats.mastered }}</span>
-          <span class="stat-label">Platinas / 100%</span>
-        </div>
-
-        <div class="stat-card">
-          <span class="stat-icon-wrapper blue">
-            <Clock :size="20" />
-          </span>
-          <span class="stat-num mono">{{ profile.stats.total_hours }}h</span>
-          <span class="stat-label">Horas Estimadas</span>
+        <div
+          class="recent-games-grid"
+          :class="gridCols === 4 ? 'grid-cols-4' : 'grid-cols-2'"
+        >
+          <GameCard
+            v-for="ug in profile.recent_games"
+            :key="ug.id"
+            :user-game="ug"
+            :compact="gridCols === 4"
+            @click="router.push(`/game/${ug.game.id}`)"
+          />
         </div>
       </section>
 
       <!-- Connected Accounts (Steam & Xbox) -->
       <section v-if="isMyProfile" class="section-card">
         <div class="section-title-row">
-          <h2 class="section-title">Contas Conectadas</h2>
-          <span class="section-hint">Sincronização de biblioteca e conquistas</span>
+          <h2 class="section-title mono">Contas Conectadas</h2>
+          <span class="section-hint">Sincronização de biblioteca, horas e conquistas</span>
         </div>
 
         <div class="accounts-list">
@@ -210,20 +254,20 @@ onMounted(() => {
             <div class="acc-actions">
               <template v-if="profile.user.steam_username">
                 <button
+                  type="button"
                   class="btn-sync"
                   :disabled="isSyncingSteam"
                   @click="handleSyncSteam"
-                  title="Sincronizar jogos do Steam"
                 >
                   <RefreshCw :size="15" :class="{ spin: isSyncingSteam }" />
                   <span>Sincronizar</span>
                 </button>
-                <button class="btn-disconnect" @click="handleDisconnect('steam')">
+                <button type="button" class="btn-disconnect" @click="handleDisconnect('steam')">
                   Desconectar
                 </button>
               </template>
               <template v-else>
-                <button class="btn-connect" @click="openConnect('steam')">
+                <button type="button" class="btn-connect" @click="openConnect('steam')">
                   Conectar
                 </button>
               </template>
@@ -245,20 +289,20 @@ onMounted(() => {
             <div class="acc-actions">
               <template v-if="profile.user.xbox_gamertag">
                 <button
+                  type="button"
                   class="btn-sync"
                   :disabled="isSyncingXbox"
                   @click="handleSyncXbox"
-                  title="Sincronizar jogos do Xbox"
                 >
                   <RefreshCw :size="15" :class="{ spin: isSyncingXbox }" />
                   <span>Sincronizar</span>
                 </button>
-                <button class="btn-disconnect" @click="handleDisconnect('xbox')">
+                <button type="button" class="btn-disconnect" @click="handleDisconnect('xbox')">
                   Desconectar
                 </button>
               </template>
               <template v-else>
-                <button class="btn-connect" @click="openConnect('xbox')">
+                <button type="button" class="btn-connect" @click="openConnect('xbox')">
                   Conectar
                 </button>
               </template>
@@ -270,9 +314,9 @@ onMounted(() => {
       <!-- Housemates Gamers -->
       <section v-if="houseGamers.length > 0" class="section-card">
         <div class="section-title-row">
-          <h2 class="section-title">
+          <h2 class="section-title mono">
             <Users :size="18" class="text-accent" />
-            <span>Moradores da CapiHouse</span>
+            <span>Amigos da CapiHouse</span>
           </h2>
           <span class="section-hint">Veja o que seus amigos estão jogando</span>
         </div>
@@ -289,10 +333,18 @@ onMounted(() => {
               class="gamer-avatar"
             />
             <span class="gamer-name">{{ g.name }}</span>
-            <ChevronRight :size="14" class="text-dim" />
+            <ChevronRight :size="15" class="text-dim" />
           </div>
         </div>
       </section>
+
+      <!-- Botão de Logout (estilo CapyShowTime) -->
+      <div v-if="isMyProfile" class="logout-box">
+        <button type="button" class="btn-logout-full" @click="handleLogout">
+          <LogOut :size="18" />
+          <span>Sair da Conta</span>
+        </button>
+      </div>
     </div>
 
     <!-- Modal de Conexão -->
@@ -306,155 +358,162 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.profile-view {
-  padding-top: 20px;
-  padding-bottom: 30px;
+.profile-page {
+  padding-bottom: 90px;
 }
 
-.profile-header {
-  display: flex;
+.page-body {
+  padding-top: calc(var(--safe-top) + 20px);
+}
+
+.friend-nav-bar {
+  margin-bottom: 16px;
+}
+
+.back-btn {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  background: var(--bg-surface);
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  color: var(--text-main);
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.back-btn:hover {
+  border-color: var(--color-accent);
+  background-color: var(--bg-surface-elevated);
+}
+
+.profile-card {
+  background-color: var(--bg-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: 20px;
+  padding: 24px 20px;
   margin-bottom: 20px;
 }
 
-.header-main {
+.user-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.avatar-lg {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--color-accent);
+  margin-bottom: 12px;
+}
+
+.user-name {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.user-username {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.time-spent-banner {
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: center;
+  gap: 14px;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-bottom: 16px;
 }
 
-.profile-avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: 2px solid var(--color-accent);
-  object-fit: cover;
+.clock-icon {
+  color: var(--color-accent);
 }
 
-.header-titles {
+.time-spent-info {
   display: flex;
   flex-direction: column;
 }
 
-.user-display-name {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: var(--text-main);
-  line-height: 1.2;
-}
-
-.user-username {
-  font-size: 0.82rem;
+.time-spent-label {
+  font-size: 0.75rem;
   color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.btn-logout {
-  color: var(--color-danger);
-  padding: 8px;
-  border-radius: var(--radius-sm);
-  background: rgba(239, 68, 68, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.btn-logout:hover {
-  background: rgba(239, 68, 68, 0.2);
-}
-
-.alert-banner {
-  background: rgba(168, 85, 247, 0.15);
-  border: 1px solid var(--color-accent);
+.time-spent-value {
+  font-size: 1.25rem;
+  font-weight: 700;
   color: var(--text-main);
-  padding: 10px 16px;
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
-  margin-bottom: 20px;
 }
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 20px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
 }
 
-@media (min-width: 600px) {
-  .stats-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-.stat-card {
-  background: var(--bg-surface);
+.stat-box {
+  background-color: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: 16px;
+  padding: 14px 10px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
   align-items: center;
   text-align: center;
+  gap: 4px;
 }
 
-.stat-icon-wrapper {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 4px;
-}
-
-.stat-icon-wrapper.purple {
-  background: rgba(124, 58, 237, 0.15);
-  color: #c084fc;
-}
-
-.stat-icon-wrapper.green {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
-}
-
-.stat-icon-wrapper.gold {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
-}
-
-.stat-icon-wrapper.blue {
-  background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
-}
-
-.stat-num {
-  font-size: 1.3rem;
-  font-weight: 800;
-  color: var(--text-main);
+.stat-val {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-accent);
 }
 
 .stat-label {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+}
+
+.alert-banner {
+  background: var(--color-accent-dim);
+  border: 1px solid var(--color-accent);
+  color: var(--text-main);
+  padding: 12px 18px;
+  border-radius: var(--radius-md);
+  font-size: 0.86rem;
+  margin-bottom: 20px;
 }
 
 .section-card {
   background: var(--bg-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 18px;
+  border-radius: var(--radius-lg);
+  padding: 20px;
   margin-bottom: 20px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
+}
+
+.section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .section-title-row {
@@ -477,6 +536,47 @@ onMounted(() => {
   color: var(--text-muted);
 }
 
+.grid-toggle {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 3px;
+  gap: 2px;
+}
+
+.grid-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.grid-toggle-btn.active {
+  background-color: var(--color-accent);
+  color: #0c0a14;
+}
+
+.recent-games-grid {
+  display: grid;
+}
+
+.recent-games-grid.grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.recent-games-grid.grid-cols-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .accounts-list {
   display: flex;
   flex-direction: column;
@@ -487,11 +587,12 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 14px;
+  padding: 14px 16px;
   background: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .acc-info {
@@ -504,8 +605,8 @@ onMounted(() => {
 .provider-pill {
   font-size: 0.7rem;
   font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -541,16 +642,17 @@ onMounted(() => {
 }
 
 .btn-sync {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
+  gap: 6px;
+  padding: 7px 14px;
   background: var(--bg-surface-hover);
   border: 1px solid var(--color-border);
   color: var(--text-main);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
   font-size: 0.78rem;
   font-weight: 600;
+  transition: all 0.2s;
 }
 
 .btn-sync:hover {
@@ -558,34 +660,41 @@ onMounted(() => {
 }
 
 .btn-disconnect {
-  padding: 6px 10px;
+  padding: 7px 12px;
   color: var(--color-danger);
-  font-size: 0.75rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  border-radius: var(--radius-full);
 }
 
 .btn-connect {
-  padding: 6px 14px;
-  background: var(--color-primary);
-  color: #fff;
-  border-radius: var(--radius-sm);
-  font-size: 0.78rem;
-  font-weight: 600;
+  padding: 8px 16px;
+  background: var(--color-accent);
+  color: #0c0a14;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+
+.btn-connect:hover {
+  background: var(--color-accent-hover);
 }
 
 .gamers-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 
 .gamer-pill {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 8px 14px 8px 8px;
   background: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -593,30 +702,51 @@ onMounted(() => {
 .gamer-pill:hover {
   background: var(--bg-surface-hover);
   border-color: var(--color-accent);
+  transform: translateY(-1px);
 }
 
 .gamer-avatar {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   object-fit: cover;
-  margin-right: 8px;
+  margin-right: 10px;
 }
 
 .gamer-name {
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   font-weight: 600;
   color: var(--text-main);
   flex: 1;
 }
 
-.loading-state {
+.logout-box {
+  margin-top: 8px;
+}
+
+.btn-logout-full {
+  width: 100%;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  border-radius: var(--radius-full);
+  background-color: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: var(--color-danger);
+  font-size: 0.9rem;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+
+.btn-logout-full:hover {
+  background-color: rgba(248, 113, 113, 0.2);
+}
+
+.loading-state {
+  text-align: center;
   padding: 80px 20px;
-  gap: 12px;
   color: var(--text-muted);
 }
 
@@ -625,7 +755,6 @@ onMounted(() => {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 

@@ -1,27 +1,27 @@
 <script setup lang="ts">
-import { Gamepad2, Compass, Flame, User } from 'lucide-vue-next'
+import { Gamepad2, Compass, Users, User as UserIcon } from 'lucide-vue-next'
 </script>
 
 <template>
   <nav class="bottom-nav">
-    <router-link to="/" class="nav-item" active-class="active">
-      <Gamepad2 class="nav-icon" :size="22" />
-      <span class="nav-label">Biblioteca</span>
+    <router-link to="/" class="nav-item" active-class="active" exact>
+      <Gamepad2 :size="22" />
+      <span>Biblioteca</span>
     </router-link>
 
     <router-link to="/discover" class="nav-item" active-class="active">
-      <Compass class="nav-icon" :size="22" />
-      <span class="nav-label">Explorar</span>
+      <Compass :size="22" />
+      <span>Descobrir</span>
     </router-link>
 
     <router-link to="/community" class="nav-item" active-class="active">
-      <Flame class="nav-icon" :size="22" />
-      <span class="nav-label">Comunidade</span>
+      <Users :size="22" />
+      <span>Capihouse</span>
     </router-link>
 
     <router-link to="/profile" class="nav-item" active-class="active">
-      <User class="nav-icon" :size="22" />
-      <span class="nav-label">Perfil</span>
+      <UserIcon :size="22" />
+      <span>Perfil</span>
     </router-link>
   </nav>
 </template>
@@ -34,51 +34,34 @@ import { Gamepad2, Compass, Flame, User } from 'lucide-vue-next'
   right: 0;
   height: calc(64px + var(--safe-bottom));
   padding-bottom: var(--safe-bottom);
-  background: rgba(21, 18, 34, 0.95);
+  background-color: rgba(21, 18, 34, 0.95);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-top: 1px solid var(--color-border);
   display: flex;
-  align-items: center;
   justify-content: space-around;
-  z-index: 50;
-  max-width: 768px;
-  margin: 0 auto;
+  align-items: center;
+  z-index: 100;
 }
 
 .nav-item {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 4px;
-  height: 100%;
-  color: var(--text-dim);
-  transition: all 0.2s ease;
-  text-decoration: none;
-}
-
-.nav-item:active {
-  transform: scale(0.92);
-}
-
-.nav-icon {
-  transition: transform 0.2s ease, color 0.2s ease;
-}
-
-.nav-label {
+  color: var(--text-muted);
   font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+}
+
+.nav-item:hover {
+  color: var(--text-main);
 }
 
 .nav-item.active {
   color: var(--color-accent);
-}
-
-.nav-item.active .nav-icon {
-  transform: translateY(-2px);
-  color: #c084fc;
 }
 </style>

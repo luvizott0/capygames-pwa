@@ -161,8 +161,8 @@ async function handleSubmit() {
 .provider-badge {
   font-size: 0.72rem;
   font-weight: 700;
-  padding: 3px 8px;
-  border-radius: var(--radius-sm);
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -182,7 +182,7 @@ async function handleSubmit() {
 .close-btn {
   color: var(--text-muted);
   padding: 6px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -204,14 +204,14 @@ async function handleSubmit() {
 .description code {
   background: var(--bg-surface-elevated);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: 6px;
   color: var(--color-accent);
   font-size: 0.8rem;
 }
 
 .alert {
   padding: 10px 14px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-size: 0.85rem;
 }
 
@@ -242,8 +242,8 @@ async function handleSubmit() {
 .form-input {
   background: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
+  border-radius: var(--radius-full);
+  padding: 11px 16px;
   color: var(--text-main);
   font-size: 0.9rem;
   outline: none;
@@ -263,21 +263,24 @@ async function handleSubmit() {
 }
 
 .btn-cancel {
-  padding: 8px 16px;
+  padding: 9px 18px;
   color: var(--text-muted);
   font-size: 0.88rem;
   font-weight: 600;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
 }
 
 .btn-submit {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 18px;
+  padding: 9px 20px;
   color: #fff;
   font-size: 0.88rem;
   font-weight: 600;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
   transition: opacity 0.2s ease;
 }
 
