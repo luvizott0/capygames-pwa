@@ -1,61 +1,41 @@
+<template>
+  <div class="app-layout">
+    <router-view v-slot="{ Component, route: currentRoute }">
+      <transition name="fade" mode="out-in">
+        <keep-alive :include="['DiscoverView', 'ProfileView', 'MyLibraryView', 'PlayingView', 'CommunityView']">
+          <component :is="Component" :key="currentRoute.fullPath" />
+        </keep-alive>
+      </transition>
+    </router-view>
+
+    <!-- Bottom Navigation Bar no estilo CapyShowTime -->
+    <BottomNav v-if="authStore.isAuthenticated && route.name !== 'login'" />
+  </div>
+</template>
+
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import BottomNav from '@/components/BottomNav.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
-
-const showBottomNav = computed(() => {
-  return authStore.isAuthenticated && route.name !== 'login'
-})
 </script>
 
-<template>
-  <div class="app-layout">
-    <main class="main-content" :class="{ 'with-bottom-nav': showBottomNav }">
-      <router-view v-slot="{ Component }">
-        <transition name="page" mode="out-in">
-          <component :is="Component" />
-        </transition>
-      </router-view>
-    </main>
-
-    <BottomNav v-if="showBottomNav" />
-  </div>
-</template>
-
-<style scoped>
+<style>
 .app-layout {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: var(--bg-app);
-  color: var(--text-main);
 }
 
-.main-content {
-  flex: 1;
-  width: 100%;
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease;
 }
 
-.main-content.with-bottom-nav {
-  padding-bottom: calc(72px + var(--safe-bottom));
-}
-
-.page-enter-active,
-.page-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-
-.page-enter-from {
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
-  transform: translateY(4px);
-}
-
-.page-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
 }
 </style>

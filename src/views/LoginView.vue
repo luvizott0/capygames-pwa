@@ -1,8 +1,87 @@
+<template>
+  <div class="login-page">
+    <div class="login-card fade-in">
+      <div class="logo-container">
+        <div class="tv-icon-badge">
+          <Gamepad2 :size="40" class="tv-icon" />
+          <div class="capy-ears"></div>
+        </div>
+        <h1 class="app-title mono">CapyGames</h1>
+        <p class="app-subtitle">O Backlog & Tracker de Jogos da Capihouse</p>
+      </div>
+
+      <form @submit.prevent="handleLogin" class="login-form">
+        <div v-if="errorMessage" class="error-banner">
+          {{ errorMessage }}
+        </div>
+
+        <div class="input-group">
+          <label for="login" class="input-label">E-mail ou Usuário da Capihouse</label>
+          <input
+            id="login"
+            v-model="loginInput"
+            type="text"
+            required
+            autocomplete="username"
+            placeholder="bento ou bento@capihouse.com"
+            class="form-input"
+          />
+        </div>
+
+        <div class="input-group">
+          <label for="password" class="input-label">Senha</label>
+          <input
+            id="password"
+            v-model="passwordInput"
+            type="password"
+            required
+            autocomplete="current-password"
+            placeholder="••••••••"
+            class="form-input"
+          />
+        </div>
+
+        <button type="submit" :disabled="authStore.isLoading" class="btn-primary submit-btn">
+          <span v-if="authStore.isLoading">Entrando...</span>
+          <span v-else>Entrar com Capihouse</span>
+        </button>
+
+        <p class="login-hint">
+          Sua conta é a mesma que você já utiliza no <strong>Capihouse</strong>.
+        </p>
+      </form>
+
+      <!-- Card de Login Rápido em Ambiente Local / Dev -->
+      <div v-if="devUsers.length > 0" class="dev-login-box">
+        <div class="dev-header mono">
+          ⚡ Teste Local ({{ devUsers.length }} contas)
+        </div>
+        <p class="dev-desc">
+          Selecione um morador para entrar sem digitar senha:
+        </p>
+        <select v-model="selectedDevUserId" class="form-input dev-select">
+          <option v-for="u in devUsers" :key="u.id" :value="u.id">
+            {{ u.name }} (@{{ u.username }}) — {{ u.status.toUpperCase() }}
+          </option>
+        </select>
+        <button
+          type="button"
+          class="btn-secondary dev-submit-btn"
+          :disabled="authStore.isLoading || !selectedDevUserId"
+          @click="handleDevLogin"
+        >
+          <span>🎭 Entrar como Selecionado</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { Gamepad2 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
-import { Gamepad2, ArrowRight, Lock, User, RefreshCw, Sparkles } from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -10,204 +89,96 @@ const authStore = useAuthStore()
 const loginInput = ref('')
 const passwordInput = ref('')
 const errorMessage = ref('')
+
 const devUsers = ref<any[]>([])
-const isLoadingDev = ref(false)
+const selectedDevUserId = ref<number | ''>('')
 
 async function handleLogin() {
-  if (!loginInput.value || !passwordInput.value) {
-    errorMessage.value = 'Preencha o usuário/e-mail e a senha.'
-    return
-  }
-
   errorMessage.value = ''
-  const result = await authStore.login(loginInput.value, passwordInput.value)
-
+  const result = await authStore.login(loginInput.value.trim(), passwordInput.value)
   if (result.success) {
     router.push('/')
   } else {
-    errorMessage.value = result.message || 'Credenciais inválidas.'
+    errorMessage.value = result.message || 'Erro ao realizar login'
   }
 }
 
-async function handleDevLogin(userId: number) {
+async function handleDevLogin() {
+  if (!selectedDevUserId.value) return
   errorMessage.value = ''
-  const result = await authStore.impersonate(userId)
-
+  const result = await authStore.impersonate(Number(selectedDevUserId.value))
   if (result.success) {
     router.push('/')
   } else {
-    errorMessage.value = result.message || 'Erro ao conectar como usuário.'
+    errorMessage.value = result.message || 'Erro ao entrar com usuário de teste'
   }
 }
 
 onMounted(async () => {
   try {
-    isLoadingDev.value = true
     const res = await authStore.getDevUsers()
-    devUsers.value = res.data
+    if (res.data?.users) {
+      devUsers.value = res.data.users.filter((u: any) => u.status === 'approved')
+      if (devUsers.value.length > 0) {
+        selectedDevUserId.value = devUsers.value[0].id
+      }
+    }
   } catch {
-    // ignore se em prod
-  } finally {
-    isLoadingDev.value = false
+    // Ignorar se não estiver em ambiente local
   }
 })
 </script>
 
-<template>
-  <div class="login-view">
-    <div class="login-card fade-in">
-      <div class="logo-box">
-        <div class="capy-badge">
-          <Gamepad2 :size="36" class="capy-icon" />
-        </div>
-        <h1 class="brand-title">CapyGames</h1>
-        <p class="brand-tagline">Biblioteca & Games da Capihouse</p>
-      </div>
-
-      <div v-if="errorMessage" class="error-banner">
-        {{ errorMessage }}
-      </div>
-
-      <form class="login-form" @submit.prevent="handleLogin">
-        <div class="form-group">
-          <label class="form-label">Usuário ou E-mail</label>
-          <div class="input-wrapper">
-            <User :size="18" class="input-icon" />
-            <input
-              v-model="loginInput"
-              type="text"
-              class="form-input"
-              placeholder="seu_usuario"
-              autocomplete="username"
-              required
-            />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Senha</label>
-          <div class="input-wrapper">
-            <Lock :size="18" class="input-icon" />
-            <input
-              v-model="passwordInput"
-              type="password"
-              class="form-input"
-              placeholder="••••••••"
-              autocomplete="current-password"
-              required
-            />
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          class="btn-submit-login"
-          :disabled="authStore.isLoading"
-        >
-          <RefreshCw v-if="authStore.isLoading" :size="18" class="spin" />
-          <template v-else>
-            <span>Entrar no CapyGames</span>
-            <ArrowRight :size="18" />
-          </template>
-        </button>
-      </form>
-
-      <!-- Moradores / Dev Users para troca rápida -->
-      <div v-if="devUsers.length > 0" class="dev-section">
-        <div class="dev-divider">
-          <span>Moradores da Casa (1 clique)</span>
-        </div>
-
-        <div class="dev-users-grid">
-          <button
-            v-for="u in devUsers"
-            :key="u.id"
-            type="button"
-            class="dev-user-btn"
-            :disabled="authStore.isLoading"
-            @click="handleDevLogin(u.id)"
-          >
-            <img
-              :src="u.avatar_url || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + u.username"
-              class="dev-avatar"
-            />
-            <span class="dev-name">{{ u.name }}</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
 <style scoped>
-.login-view {
+.login-page {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
-  background: radial-gradient(circle at 50% 20%, rgba(124, 58, 237, 0.15) 0%, var(--bg-app) 70%);
+  padding: calc(var(--safe-top) + 20px) 20px calc(var(--safe-bottom) + 20px);
+  background: radial-gradient(circle at top, #221d31 0%, #0f0d15 70%);
 }
 
 .login-card {
   width: 100%;
-  max-width: 420px;
-  background: var(--bg-surface);
+  max-width: 380px;
+  background-color: var(--bg-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 32px 24px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 40px rgba(124, 58, 237, 0.15);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
 }
 
-.logo-box {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.logo-container {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
-.capy-badge {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: rgba(124, 58, 237, 0.15);
-  border: 2px solid var(--color-accent);
-  display: flex;
+.tv-icon-badge {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 12px;
-  box-shadow: 0 0 24px rgba(124, 58, 237, 0.4);
-}
-
-.capy-icon {
-  color: #c084fc;
-}
-
-.brand-title {
-  font-size: 1.6rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #f5f3ff 0%, #c084fc 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.brand-tagline {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
-
-.error-banner {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid var(--color-danger);
-  color: var(--color-danger);
-  padding: 10px 14px;
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
+  width: 72px;
+  height: 72px;
+  background-color: var(--color-accent);
+  color: #0f0d15;
+  border-radius: var(--radius-md);
   margin-bottom: 16px;
-  text-align: center;
+  box-shadow: 0 0 24px rgba(192, 132, 252, 0.35);
+}
+
+.app-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.5px;
+}
+
+.app-subtitle {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-top: 4px;
 }
 
 .login-form {
@@ -216,147 +187,83 @@ onMounted(async () => {
   gap: 16px;
 }
 
-.form-group {
+.error-banner {
+  background-color: rgba(248, 113, 113, 0.15);
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+}
+
+.input-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.form-label {
-  font-size: 0.82rem;
-  font-weight: 600;
+.input-label {
+  font-size: 0.8rem;
+  font-weight: 500;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.input-icon {
-  position: absolute;
-  left: 14px;
-  color: var(--text-dim);
 }
 
 .form-input {
-  width: 100%;
-  background: var(--bg-surface-elevated);
+  background-color: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  padding: 12px 16px 12px 42px;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
   color: var(--text-main);
   font-size: 0.95rem;
   outline: none;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s;
 }
 
 .form-input:focus {
   border-color: var(--color-accent);
 }
 
-.btn-submit-login {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: var(--color-accent);
-  color: #0c0a14;
-  padding: 13px 22px;
-  border-radius: var(--radius-full);
-  font-size: 0.95rem;
-  font-weight: 700;
+.submit-btn {
+  width: 100%;
   margin-top: 8px;
-  box-shadow: 0 4px 16px rgba(168, 85, 247, 0.35);
-  transition: all 0.2s ease;
 }
 
-.btn-submit-login:hover:not(:disabled) {
-  background: var(--color-accent-hover);
-  transform: translateY(-1px);
-}
-
-.btn-submit-login:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.dev-section {
-  margin-top: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.dev-divider {
-  display: flex;
-  align-items: center;
+.login-hint {
   text-align: center;
   font-size: 0.75rem;
   color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  margin-top: 8px;
 }
 
-.dev-divider::before,
-.dev-divider::after {
-  content: '';
-  flex: 1;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.dev-divider span {
-  padding: 0 10px;
-}
-
-.dev-users-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-}
-
-.dev-user-btn {
+.dev-login-box {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--color-border);
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--bg-surface-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  color: var(--text-main);
-  font-size: 0.82rem;
-  font-weight: 600;
-  transition: all 0.2s ease;
-  overflow: hidden;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.dev-user-btn:hover {
-  background: var(--bg-surface-hover);
-  border-color: var(--color-accent);
+.dev-header {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  text-transform: uppercase;
 }
 
-.dev-avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  object-fit: cover;
+.dev-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
 }
 
-.dev-name {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.dev-select {
+  font-size: 0.85rem;
+  padding: 10px 12px;
 }
 
-.spin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+.dev-submit-btn {
+  width: 100%;
+  border-color: rgba(192, 132, 252, 0.35);
+  color: var(--color-accent);
 }
 </style>

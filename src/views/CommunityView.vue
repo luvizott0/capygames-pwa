@@ -1,78 +1,3 @@
-<script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { capyGamesApi, type GameActivity } from '@/api/capygames'
-import { Trophy, Star, Clock, RotateCw, Gamepad2, Users } from 'lucide-vue-next'
-
-const router = useRouter()
-
-const activities = ref<GameActivity[]>([])
-const houseUsers = ref<any[]>([])
-const isLoading = ref(true)
-const activeFilter = ref<'all' | 'milestones' | 'achievements' | 'reviews'>('all')
-
-async function fetchFeed() {
-  isLoading.value = true
-  try {
-    const [feedRes, usersRes] = await Promise.all([
-      capyGamesApi.getFeed(40),
-      capyGamesApi.getUsers()
-    ])
-    activities.value = feedRes.data.data
-    houseUsers.value = usersRes.data.data || []
-  } catch (err) {
-    console.error('Falha ao buscar feed:', err)
-  } finally {
-    isLoading.value = false
-  }
-}
-
-const filteredActivities = computed(() => {
-  return activities.value.filter(act => {
-    if (activeFilter.value === 'achievements') {
-      return act.type === 'achievement'
-    }
-    if (activeFilter.value === 'milestones') {
-      return (
-        act.metadata?.status === 'completed' ||
-        act.metadata?.status === 'mastered' ||
-        act.title.includes('Zerou') ||
-        act.title.includes('Platinou') ||
-        act.title.includes('Miletou')
-      )
-    }
-    if (activeFilter.value === 'reviews') {
-      return act.type === 'review' || !!act.content
-    }
-    return true
-  })
-})
-
-function formatTime(dateStr: string) {
-  try {
-    const date = new Date(dateStr)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / (1000 * 60))
-    const diffHours = Math.floor(diffMins / 60)
-    const diffDays = Math.floor(diffHours / 24)
-
-    if (diffMins < 2) return 'agora'
-    if (diffMins < 60) return `há ${diffMins} min`
-    if (diffHours < 24) return `há ${diffHours}h`
-    if (diffDays === 1) return 'ontem'
-    if (diffDays < 7) return `há ${diffDays} dias`
-    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
-  } catch {
-    return dateStr
-  }
-}
-
-onMounted(() => {
-  fetchFeed()
-})
-</script>
-
 <template>
   <div class="community-page">
     <header class="page-header">
@@ -82,58 +7,16 @@ onMounted(() => {
             <h1 class="header-title mono">Atividades da CapyGames</h1>
             <p class="header-subtitle">O que os amigos da capihouse estão jogando</p>
           </div>
-          <button
-            type="button"
-            class="refresh-btn"
-            :class="{ spinning: isLoading }"
-            :disabled="isLoading"
-            title="Recarregar atividades"
-            @click="fetchFeed"
-          >
-            <RotateCw :size="18" />
-          </button>
-        </div>
-
-        <!-- Filtros em Pílula -->
-        <div class="filters-bar">
-          <button
-            type="button"
-            class="filter-pill"
-            :class="{ active: activeFilter === 'all' }"
-            @click="activeFilter = 'all'"
-          >
-            Todas
-          </button>
-          <button
-            type="button"
-            class="filter-pill"
-            :class="{ active: activeFilter === 'milestones' }"
-            @click="activeFilter = 'milestones'"
-          >
-            🏆 Zeramentos & Platinas
-          </button>
-          <button
-            type="button"
-            class="filter-pill"
-            :class="{ active: activeFilter === 'achievements' }"
-            @click="activeFilter = 'achievements'"
-          >
-            🎮 Conquistas
-          </button>
-          <button
-            type="button"
-            class="filter-pill"
-            :class="{ active: activeFilter === 'reviews' }"
-            @click="activeFilter = 'reviews'"
-          >
-            📝 Análises
-          </button>
+          <RefreshButton
+            :is-refreshing="gamesStore.isRefreshingCommunity"
+            @refresh="onForceRefresh"
+          />
         </div>
       </div>
     </header>
 
     <main class="container page-body">
-      <!-- Amigos da Casa (estilo CapyShowTime) -->
+      <!-- Amigos da Casa (acesso rápido aos perfis e listas) -->
       <section v-if="houseUsers.length > 0" class="friends-section fade-in">
         <h2 class="section-heading mono">Amigos da Casa</h2>
         <div class="friends-scroll">
@@ -141,96 +24,191 @@ onMounted(() => {
             v-for="u in houseUsers"
             :key="u.id"
             class="friend-chip"
-            @click="router.push(`/user/${u.id}`)"
+            @click="goToProfile(u.id)"
           >
             <img
-              :src="u.avatar_url || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + u.username"
+              v-if="u.avatar_url"
+              :src="u.avatar_url"
               :alt="u.name"
               class="friend-avatar"
             />
+            <div v-else class="friend-avatar-placeholder">
+              {{ u.name.charAt(0) }}
+            </div>
             <span class="friend-name">{{ u.name.split(' ')[0] }}</span>
           </div>
         </div>
       </section>
 
-      <!-- Feed Content -->
-      <div v-if="isLoading && activities.length === 0" class="loading-state">
+      <div v-if="gamesStore.isRefreshingCommunity && !gamesStore.communityLoaded" class="loading-state">
         <div class="spinner"></div>
         <p>Carregando atividades...</p>
       </div>
 
-      <div v-else-if="filteredActivities.length === 0" class="empty-state fade-in">
+      <div v-else-if="gamesStore.communityActivities.length === 0" class="empty-state fade-in">
         <Users :size="48" class="empty-icon" />
         <h3 class="empty-title">Nenhuma atividade recente</h3>
-        <p class="empty-desc">As conquistas, zeramentos e análises dos amigos da Capihouse aparecerão aqui!</p>
+        <p class="empty-desc">Assim que algum amigo avaliar jogos, publicar análises ou zerar títulos, as novidades aparecerão aqui!</p>
       </div>
 
       <div v-else class="activities-list fade-in">
         <h2 class="section-heading mono">Destaques da Casa</h2>
-        <article
-          v-for="act in filteredActivities"
+        <div
+          v-for="act in gamesStore.communityActivities"
           :key="act.id"
           class="activity-card"
-          :class="{
-            'card-mastered': act.metadata?.status === 'mastered',
-            'card-completed': act.metadata?.status === 'completed'
-          }"
         >
-          <div class="activity-top">
-            <div class="user-block" @click="router.push(`/user/${act.user.id}`)">
+          <div class="user-row" @click="goToProfile(act.user.id)">
+            <div class="user-main">
               <img
-                :src="act.user.avatar_url || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + act.user.username"
+                v-if="act.user.avatar_url"
+                :src="act.user.avatar_url"
+                :alt="act.user.name"
                 class="user-avatar"
               />
+              <div v-else class="user-avatar-placeholder">
+                {{ act.user.name.charAt(0) }}
+              </div>
               <div class="user-meta">
                 <span class="user-name">{{ act.user.name }}</span>
-                <span class="time-ago">{{ formatTime(act.created_at) }}</span>
+                <span class="activity-time">{{ formatRelativeDate(act.created_at) }}</span>
               </div>
             </div>
 
-            <div v-if="act.metadata?.rating" class="badge-rating mono">
-              <Star :size="12" fill="currentColor" />
-              <span>{{ act.metadata.rating.toFixed(1) }}</span>
-            </div>
-            <div v-else-if="act.metadata?.status === 'mastered'" class="badge-mastered mono">
-              <Trophy :size="12" />
-              <span>Platina</span>
+            <!-- Badge do tipo de atividade relevante -->
+            <div class="activity-type-badge" :class="getActivityClass(act)">
+              <Trophy v-if="isCompletedActivity(act)" :size="13" />
+              <MessageSquare v-else-if="act.content" :size="13" />
+              <Star v-else :size="13" fill="currentColor" />
+              <span>
+                {{ getActivityBadgeLabel(act) }}
+              </span>
             </div>
           </div>
 
-          <div class="activity-content">
-            <h3 class="headline-text">{{ act.title }}</h3>
+          <div class="activity-content" @click="goToGame(act.game?.id || act.game_id)">
+            <img
+              v-if="act.game?.cover_url || act.metadata?.cover_url"
+              :src="act.game?.cover_url || act.metadata?.cover_url"
+              :alt="act.game?.title || act.metadata?.game_title"
+              class="series-poster"
+            />
+            <div class="content-details">
+              <h4 class="series-name">{{ act.game?.title || act.metadata?.game_title }}</h4>
 
-            <div v-if="act.content" class="review-quote">
-              <p>"{{ act.content }}"</p>
-            </div>
+              <!-- Jogo Zerado ou Platinado -->
+              <div v-if="isCompletedActivity(act)" class="completion-box">
+                <span class="completion-pill">
+                  {{ act.metadata?.status === 'mastered' ? '🏆 Platinou / 100%!' : '🏁 Zerou o jogo!' }}
+                </span>
+                <span v-if="act.metadata?.hours_played" class="seasons-total mono">
+                  {{ act.metadata.hours_played }}h
+                </span>
+              </div>
 
-            <div class="game-preview" @click="router.push(`/game/${act.game.id}`)">
-              <img
-                :src="act.game.cover_url || act.metadata?.cover_url || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=400&q=80'"
-                :alt="act.game.title"
-                class="game-thumb"
-              />
-              <div class="game-meta">
-                <span class="game-title">{{ act.game.title }}</span>
-                <div class="tags-row">
-                  <span v-if="act.metadata?.platform" class="badge-tag">{{ act.metadata.platform }}</span>
-                  <span v-if="act.metadata?.hours_played" class="tag hours mono">
-                    <Clock :size="11" />
-                    {{ act.metadata.hours_played }}h
-                  </span>
-                  <span v-if="act.metadata?.gamerscore" class="tag gamerscore mono">
-                    +{{ act.metadata.gamerscore }}G
-                  </span>
+              <!-- Info de Plataforma / Status -->
+              <p v-else class="ep-info">
+                <span v-if="act.metadata?.platform" class="mono ep-code">{{ act.metadata.platform }}</span>
+                <span class="ep-title">{{ act.title }}</span>
+              </p>
+
+              <!-- Avaliação com Nota -->
+              <div v-if="act.metadata?.rating" class="rating-badge-row">
+                <div class="badge-rating mono">
+                  <Star :size="14" fill="currentColor" />
+                  <span>{{ Number(act.metadata.rating).toFixed(1) }} ★</span>
+                </div>
+              </div>
+
+              <!-- Análise / Review -->
+              <div v-if="act.content" class="comment-box" @click.stop>
+                <div class="comment-text-wrapper">
+                  <p class="comment-text">
+                    "{{ act.content }}"
+                  </p>
                 </div>
               </div>
             </div>
           </div>
-        </article>
+        </div>
       </div>
     </main>
   </div>
 </template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { Users, Star, MessageSquare, Trophy } from 'lucide-vue-next'
+import { capyGamesApi, type GameActivity } from '@/api/capygames'
+import { useGamesStore } from '@/stores/games'
+import RefreshButton from '@/components/RefreshButton.vue'
+
+const router = useRouter()
+const gamesStore = useGamesStore()
+const houseUsers = ref<any[]>([])
+
+async function fetchUsers() {
+  try {
+    const res = await capyGamesApi.getUsers()
+    houseUsers.value = res.data.data || []
+  } catch (err) {
+    console.error('Erro ao buscar amigos:', err)
+  }
+}
+
+function onForceRefresh() {
+  gamesStore.fetchCommunity(true)
+  fetchUsers()
+}
+
+function isCompletedActivity(act: GameActivity): boolean {
+  const st = act.metadata?.status
+  return st === 'completed' || st === 'mastered' || act.type === 'achievement'
+}
+
+function getActivityClass(act: GameActivity): string {
+  if (isCompletedActivity(act)) return 'completed'
+  if (act.content) return 'comment'
+  return 'rating'
+}
+
+function getActivityBadgeLabel(act: GameActivity): string {
+  if (act.metadata?.status === 'mastered') return 'Platinou'
+  if (act.metadata?.status === 'completed') return 'Zerou'
+  if (act.content) return 'Analisou'
+  if (act.metadata?.rating) return 'Avaliou'
+  return 'Jogando'
+}
+
+function formatRelativeDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  const diffMs = Date.now() - d.getTime()
+  const mins = Math.floor(diffMs / 60000)
+  if (mins < 1) return 'Agora mesmo'
+  if (mins < 60) return `há ${mins} min`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `há ${hours}h`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `há ${days}d`
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+}
+
+function goToProfile(userId: number) {
+  router.push(`/profile/${userId}`)
+}
+
+function goToGame(gameId: number) {
+  if (gameId) {
+    router.push(`/game/${gameId}`)
+  }
+}
+
+onMounted(() => {
+  gamesStore.fetchCommunity(false)
+  fetchUsers()
+})
+</script>
 
 <style scoped>
 .community-page {
@@ -238,88 +216,25 @@ onMounted(() => {
 }
 
 .page-header {
-  padding: calc(var(--safe-top) + 16px) 0 12px;
+  padding: calc(var(--safe-top) + 16px) 0 16px;
   background-color: var(--bg-surface);
   border-bottom: 1px solid var(--color-border);
-  position: sticky;
-  top: 0;
-  z-index: 10;
 }
 
 .header-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 14px;
 }
 
 .header-title {
-  font-size: 1.35rem;
+  font-size: 1.4rem;
   font-weight: 700;
 }
 
 .header-subtitle {
-  font-size: 0.84rem;
+  font-size: 0.85rem;
   color: var(--text-muted);
-}
-
-.refresh-btn {
-  width: 38px;
-  height: 38px;
-  border-radius: var(--radius-full);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--bg-surface-elevated);
-  border: 1px solid var(--color-border);
-  color: var(--text-muted);
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.refresh-btn:hover {
-  color: var(--color-accent);
-  border-color: var(--color-accent);
-}
-
-.refresh-btn.spinning svg {
-  animation: spin 0.8s linear infinite;
-  color: var(--color-accent);
-}
-
-.filters-bar {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scrollbar-width: none;
-}
-
-.filters-bar::-webkit-scrollbar {
-  display: none;
-}
-
-.filter-pill {
-  padding: 8px 16px;
-  border-radius: var(--radius-full);
-  background: var(--bg-surface-elevated);
-  border: 1px solid var(--color-border);
-  color: var(--text-muted);
-  font-size: 0.82rem;
-  font-weight: 500;
-  white-space: nowrap;
-  transition: all 0.2s ease;
-}
-
-.filter-pill:hover {
-  color: var(--text-main);
-}
-
-.filter-pill.active {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: #0c0a14;
-  font-weight: 700;
 }
 
 .page-body {
@@ -331,7 +246,7 @@ onMounted(() => {
 }
 
 .section-heading {
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -341,9 +256,9 @@ onMounted(() => {
 
 .friends-scroll {
   display: flex;
-  gap: 10px;
+  gap: 14px;
   overflow-x: auto;
-  padding-bottom: 6px;
+  padding: 4px 2px 8px;
   scrollbar-width: none;
 }
 
@@ -353,85 +268,175 @@ onMounted(() => {
 
 .friend-chip {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 6px 14px 6px 6px;
-  background-color: var(--bg-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
+  gap: 6px;
   cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s ease;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
 }
 
 .friend-chip:hover {
-  border-color: var(--color-accent);
-  background-color: var(--bg-surface-elevated);
   transform: translateY(-2px);
 }
 
 .friend-avatar {
-  width: 28px;
-  height: 28px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   object-fit: cover;
+  border: 2px solid var(--color-border);
+  transition: border-color 0.2s;
+}
+
+.friend-chip:hover .friend-avatar {
+  border-color: var(--color-accent);
+}
+
+.friend-avatar-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  border: 2px solid var(--color-border);
 }
 
 .friend-name {
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 0.75rem;
   color: var(--text-main);
+  font-weight: 500;
+  max-width: 64px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .activities-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 .activity-card {
-  background: var(--bg-surface);
+  background-color: var(--bg-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  transition: border-color 0.2s ease;
+  padding: 16px;
 }
 
-.activity-card:hover {
-  border-color: var(--color-accent);
-}
-
-.card-mastered {
-  border-color: rgba(245, 158, 11, 0.5);
-  background: linear-gradient(180deg, rgba(245, 158, 11, 0.05) 0%, var(--bg-surface) 100%);
-}
-
-.card-completed {
-  border-color: rgba(16, 185, 129, 0.4);
-}
-
-.activity-top {
+.user-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-
-.user-block {
-  display: flex;
-  align-items: center;
   gap: 10px;
+  margin-bottom: 12px;
   cursor: pointer;
 }
 
+.user-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.activity-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+}
+
+.activity-type-badge.rating {
+  background: rgba(192, 132, 252, 0.15);
+  color: var(--color-accent);
+  border: 1px solid rgba(192, 132, 252, 0.3);
+}
+
+.activity-type-badge.comment {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.activity-type-badge.completed {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--color-success);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.completion-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  flex-wrap: wrap;
+}
+
+.completion-pill {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-success);
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.seasons-total {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.comment-box {
+  margin-top: 8px;
+  background-color: var(--bg-surface);
+  border-left: 3px solid var(--color-primary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 8px 10px;
+}
+
+.comment-text {
+  font-size: 0.82rem;
+  color: var(--text-main);
+  font-style: italic;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.comment-text-wrapper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .user-avatar {
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid var(--color-border);
+}
+
+.user-avatar-placeholder {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
 }
 
 .user-meta {
@@ -441,104 +446,68 @@ onMounted(() => {
 
 .user-name {
   font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.time-ago {
-  font-size: 0.74rem;
-  color: var(--text-muted);
-}
-
-.headline-text {
-  font-size: 0.94rem;
   font-weight: 600;
   color: var(--text-main);
 }
 
-.review-quote {
-  background: var(--bg-surface-elevated);
-  border-left: 3px solid var(--color-accent);
-  padding: 12px 16px;
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-  font-size: 0.88rem;
-  color: #e2d9f3;
-  font-style: italic;
-  margin-top: 6px;
+.activity-time {
+  font-size: 0.72rem;
+  color: var(--text-dim);
 }
 
-.game-preview {
+.activity-content {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  background: var(--bg-surface-elevated);
-  border: 1px solid var(--color-border);
+  gap: 14px;
+  background-color: var(--bg-surface-elevated);
   border-radius: var(--radius-md);
-  padding: 10px 14px;
+  padding: 10px;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
-  margin-top: 8px;
+  border: 1px solid var(--color-border-subtle);
 }
 
-.game-preview:hover {
-  background: var(--bg-surface-hover);
-  border-color: var(--color-accent);
-}
-
-.game-thumb {
-  width: 44px;
-  height: 62px;
+.series-poster {
+  width: 50px;
+  height: 75px;
   border-radius: var(--radius-sm);
   object-fit: cover;
+  flex-shrink: 0;
 }
 
-.game-meta {
+.content-details {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  overflow: hidden;
+  justify-content: center;
+  min-width: 0;
 }
 
-.game-title {
-  font-size: 0.9rem;
+.series-name {
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--text-main);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.tags-row {
+.ep-info {
+  font-size: 0.8rem;
+  color: var(--text-muted);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  margin: 2px 0 6px;
 }
 
-.tag {
-  font-size: 0.72rem;
-  padding: 3px 9px;
-  border-radius: var(--radius-full);
-}
-
-.tag.hours {
+.ep-code {
   color: var(--color-accent);
-  background: var(--color-accent-dim);
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-weight: 600;
-}
-
-.tag.gamerscore {
-  background: rgba(34, 197, 94, 0.15);
-  color: #4ade80;
   font-weight: 700;
 }
 
-.loading-state,
-.empty-state {
+.rating-badge-row {
+  display: flex;
+}
+
+.loading-state, .empty-state {
   text-align: center;
-  padding: 60px 20px;
+  padding: 60px 0;
   color: var(--text-muted);
 }
 
@@ -550,12 +519,22 @@ onMounted(() => {
 .empty-title {
   font-size: 1.15rem;
   font-weight: 700;
-  margin-bottom: 6px;
   color: var(--text-main);
+  margin-bottom: 4px;
 }
 
 .empty-desc {
   font-size: 0.85rem;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 12px;
 }
 
 @keyframes spin {

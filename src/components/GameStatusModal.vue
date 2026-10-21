@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { capyGamesApi, type CapyUserGame, type GameStatus, type GameSearchResult } from '@/api/capygames'
-import { X, Star, Trash2, Check, Clock, Trophy } from 'lucide-vue-next'
+import { X, Star, Trash2, Check, Clock } from 'lucide-vue-next'
 
 const props = defineProps<{
   isOpen: boolean

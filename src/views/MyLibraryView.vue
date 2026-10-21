@@ -1,120 +1,9 @@
-<script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { capyGamesApi, type CapyUserGame } from '@/api/capygames'
-import { useGridMode } from '@/composables/useGridMode'
-import GameCard from '@/components/GameCard.vue'
-import GameStatusModal from '@/components/GameStatusModal.vue'
-import {
-  Search,
-  Plus,
-  SlidersHorizontal,
-  RotateCw,
-  Trophy,
-  Gamepad2,
-  X,
-  Grid2x2,
-  LayoutGrid
-} from 'lucide-vue-next'
-
-const router = useRouter()
-const { gridCols, setGridCols } = useGridMode()
-
-const library = ref<CapyUserGame[]>([])
-const isLoading = ref(true)
-const activeTab = ref<string>('all')
-const searchQuery = ref('')
-const selectedPlatform = ref('all')
-
-const isModalOpen = ref(false)
-const selectedUserGame = ref<CapyUserGame | null>(null)
-
-const tabs = [
-  { id: 'all', label: 'Todos' },
-  { id: 'playing', label: 'Jogando' },
-  { id: 'plan_to_play', label: 'Na Fila' },
-  { id: 'completed', label: 'Zerados' },
-  { id: 'mastered', label: 'Platinas', icon: Trophy },
-  { id: 'on_hold', label: 'Em Pausa' },
-  { id: 'dropped', label: 'Abandonados' }
-]
-
-const availablePlatforms = computed(() => {
-  const set = new Set<string>()
-  library.value.forEach(ug => {
-    if (ug.platform) set.add(ug.platform)
-  })
-  return Array.from(set)
-})
-
-async function fetchLibrary() {
-  isLoading.value = true
-  try {
-    const res = await capyGamesApi.getMyLibrary()
-    library.value = res.data.data
-  } catch (err) {
-    console.error('Falha ao buscar biblioteca:', err)
-  } finally {
-    isLoading.value = false
-  }
-}
-
-const filteredGames = computed(() => {
-  return library.value.filter(ug => {
-    if (activeTab.value !== 'all' && ug.status !== activeTab.value) {
-      return false
-    }
-
-    if (selectedPlatform.value !== 'all' && ug.platform !== selectedPlatform.value) {
-      return false
-    }
-
-    if (searchQuery.value.trim()) {
-      const q = searchQuery.value.toLowerCase()
-      const titleMatch = ug.game.title.toLowerCase().includes(q)
-      const platMatch = ug.platform?.toLowerCase().includes(q)
-      if (!titleMatch && !platMatch) return false
-    }
-
-    return true
-  })
-})
-
-function getCount(tabId: string): number {
-  if (tabId === 'all') return library.value.length
-  return library.value.filter(ug => ug.status === tabId).length
-}
-
-function handleCardClick(ug: CapyUserGame) {
-  selectedUserGame.value = ug
-  isModalOpen.value = true
-}
-
-function handleUpdated(updatedUserGame: CapyUserGame) {
-  const index = library.value.findIndex(ug => ug.id === updatedUserGame.id)
-  if (index !== -1) {
-    library.value[index] = updatedUserGame
-  } else {
-    library.value.unshift(updatedUserGame)
-  }
-}
-
-function handleRemoved(id: number) {
-  library.value = library.value.filter(ug => ug.id !== id)
-}
-
-onMounted(() => {
-  fetchLibrary()
-})
-</script>
-
 <template>
-  <div class="library-page">
+  <div class="my-list-page">
     <header class="page-header">
       <div class="container">
         <div class="header-top">
-          <h1 class="header-title mono">Minha Biblioteca</h1>
-
+          <h1 class="header-title mono">Minha Lista</h1>
           <div class="header-actions">
             <!-- Toggle Grid 2 ou 4 colunas -->
             <div class="grid-toggle" role="group" aria-label="Modo de visualização">
@@ -140,116 +29,151 @@ onMounted(() => {
               </button>
             </div>
 
-            <button
-              type="button"
-              class="refresh-btn"
-              :class="{ spinning: isLoading }"
-              :disabled="isLoading"
-              title="Recarregar biblioteca"
-              @click="fetchLibrary"
-            >
-              <RotateCw :size="18" />
-            </button>
-
-            <button type="button" class="add-pill-btn" @click="router.push('/discover')">
-              <Plus :size="16" />
-              <span>Buscar</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Barra de Busca e Plataforma -->
-        <div class="filters-row">
-          <div class="search-bar">
-            <Search :size="18" class="search-icon" />
-            <input
-              v-model="searchQuery"
-              type="search"
-              class="search-input"
-              placeholder="Filtrar por nome ou plataforma..."
+            <!-- Botão de Recarregamento Forçado -->
+            <RefreshButton
+              :is-refreshing="gamesStore.isRefreshingMyList"
+              @refresh="onForceRefresh"
             />
-            <button v-if="searchQuery" type="button" class="clear-btn" @click="searchQuery = ''">
-              <X :size="16" />
-            </button>
-          </div>
-
-          <div v-if="availablePlatforms.length > 0" class="platform-filter">
-            <SlidersHorizontal :size="14" class="filter-icon" />
-            <select v-model="selectedPlatform" class="platform-select">
-              <option value="all">Plataformas</option>
-              <option v-for="p in availablePlatforms" :key="p" :value="p">{{ p }}</option>
-            </select>
           </div>
         </div>
 
-        <!-- Abas de Status (estilo CapyShowTime) -->
+        <!-- Abas de Filtro -->
         <div class="tabs-container">
           <button
-            v-for="t in tabs"
-            :key="t.id"
-            type="button"
+            v-for="tab in tabs"
+            :key="tab.value"
             class="tab-btn"
-            :class="{ active: activeTab === t.id }"
-            @click="activeTab = t.id"
+            :class="{ active: currentTab === tab.value }"
+            @click="setTab(tab.value)"
           >
-            <component :is="t.icon" v-if="t.icon" :size="14" />
-            <span>{{ t.label }}</span>
-            <span class="tab-count mono">{{ getCount(t.id) }}</span>
+            {{ tab.label }}
           </button>
         </div>
       </div>
     </header>
 
     <main class="container page-body">
-      <!-- Loading State -->
-      <div v-if="isLoading && library.length === 0" class="loading-state">
+      <!-- Loading State Inicial -->
+      <div v-if="gamesStore.isRefreshingMyList && !gamesStore.myListLoaded" class="loading-state">
         <div class="spinner"></div>
-        <p>Carregando sua biblioteca...</p>
+        <p>Carregando sua lista...</p>
       </div>
 
-      <!-- Empty State -->
-      <div v-else-if="filteredGames.length === 0" class="empty-state fade-in">
-        <Gamepad2 :size="48" class="empty-icon" />
+      <div v-else-if="filteredList.length === 0" class="empty-state fade-in">
+        <Bookmark :size="48" class="empty-icon" />
         <h3 class="empty-title">Nenhum jogo aqui ainda</h3>
-        <p v-if="searchQuery" class="empty-desc">Nenhum título corresponde a "{{ searchQuery }}".</p>
-        <p v-else-if="activeTab !== 'all'" class="empty-desc">Você não possui jogos nesta categoria ainda.</p>
-        <p v-else class="empty-desc">Adicione jogos para organizar seu backlog, horas jogadas e platinas!</p>
-
+        <p class="empty-desc">Adicione jogos para organizar o que você quer jogar ou já zerou!</p>
         <router-link to="/discover" class="btn-primary">
           <Search :size="18" />
           <span>Buscar Jogos</span>
         </router-link>
       </div>
 
-      <!-- Games Grid (2 ou 4 colunas) -->
       <div
         v-else
-        class="games-grid fade-in"
+        class="series-grid fade-in"
         :class="gridCols === 4 ? 'grid-cols-4' : 'grid-cols-2'"
       >
-        <GameCard
-          v-for="ug in filteredGames"
-          :key="ug.id"
-          :user-game="ug"
-          :compact="gridCols === 4"
-          @click="handleCardClick"
-        />
+        <div
+          v-for="item in filteredList"
+          :key="item.id"
+          class="series-card"
+          :class="{ compact: gridCols === 4 }"
+          @click="goToGame(item.game.id)"
+        >
+          <div class="poster-container">
+            <img
+              v-if="item.game.cover_url"
+              :src="item.game.cover_url"
+              :alt="item.game.title"
+              class="poster-img"
+              loading="lazy"
+            />
+            <div v-else class="poster-placeholder">
+              <Gamepad2 :size="28" />
+            </div>
+            <div class="status-badge">
+              {{ getStatusLabel(item.status) }}
+            </div>
+            <div v-if="item.rating" class="rating-badge mono">
+              ★ {{ Number(item.rating).toFixed(1) }}
+            </div>
+          </div>
+          <div class="series-info">
+            <h3 class="series-title">{{ item.game.title }}</h3>
+            <span class="series-seasons mono">
+              {{ item.platform || 'PC' }}<template v-if="item.hours_played > 0"> • {{ item.hours_played }}h</template>
+            </span>
+          </div>
+        </div>
       </div>
     </main>
-
-    <!-- Modal de Edição de Status / Avaliação -->
-    <GameStatusModal
-      :is-open="isModalOpen"
-      :user-game="selectedUserGame"
-      @close="isModalOpen = false"
-      @updated="handleUpdated"
-      @removed="handleRemoved"
-    />
   </div>
 </template>
 
+<script setup lang="ts">
+import { computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { Bookmark, Search, Gamepad2, Grid2x2, LayoutGrid } from 'lucide-vue-next'
+import { useGamesStore } from '@/stores/games'
+import { useGridMode } from '@/composables/useGridMode'
+import RefreshButton from '@/components/RefreshButton.vue'
+
+const router = useRouter()
+const gamesStore = useGamesStore()
+const { gridCols, setGridCols } = useGridMode()
+
+const currentTab = computed({
+  get: () => gamesStore.myListActiveTab,
+  set: (val: string) => { gamesStore.myListActiveTab = val }
+})
+
+const tabs = [
+  { label: 'Todos', value: 'all' },
+  { label: 'Jogando', value: 'playing' },
+  { label: 'Quero Jogar', value: 'plan_to_play' },
+  { label: 'Zerados', value: 'completed' },
+  { label: 'Platinados', value: 'mastered' },
+  { label: 'Em Pausa', value: 'on_hold' },
+  { label: 'Abandonados', value: 'dropped' },
+]
+
+function onForceRefresh() {
+  gamesStore.fetchMyList(true)
+}
+
+const filteredList = computed(() => {
+  if (currentTab.value === 'all') return gamesStore.myList
+  return gamesStore.myList.filter(i => i.status === currentTab.value)
+})
+
+function setTab(tab: string) {
+  gamesStore.myListActiveTab = tab
+}
+
+function getStatusLabel(status: string): string {
+  switch (status) {
+    case 'plan_to_play': return 'Na Fila'
+    case 'playing': return 'Jogando'
+    case 'completed': return 'Zerado'
+    case 'mastered': return 'Platinado'
+    case 'on_hold': return 'Em Pausa'
+    case 'dropped': return 'Abandonado'
+    default: return status
+  }
+}
+
+function goToGame(gameId: number) {
+  router.push(`/game/${gameId}`)
+}
+
+onMounted(() => {
+  gamesStore.fetchMyList(false)
+})
+</script>
+
 <style scoped>
-.library-page {
+.my-list-page {
   padding-bottom: 90px;
 }
 
@@ -266,14 +190,12 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
   margin-bottom: 14px;
 }
 
 .header-title {
-  font-size: 1.35rem;
+  font-size: 1.4rem;
   font-weight: 700;
-  white-space: nowrap;
 }
 
 .header-actions {
@@ -310,119 +232,7 @@ onMounted(() => {
 
 .grid-toggle-btn.active {
   background-color: var(--color-accent);
-  color: #0c0a14;
-}
-
-.refresh-btn {
-  width: 38px;
-  height: 38px;
-  border-radius: var(--radius-full);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--bg-surface-elevated);
-  border: 1px solid var(--color-border);
-  color: var(--text-muted);
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.refresh-btn:hover {
-  color: var(--color-accent);
-  border-color: var(--color-accent);
-}
-
-.refresh-btn.spinning svg {
-  animation: spin 0.8s linear infinite;
-  color: var(--color-accent);
-}
-
-.add-pill-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background-color: var(--color-accent);
-  color: #0c0a14;
-  padding: 8px 14px;
-  border-radius: var(--radius-full);
-  font-size: 0.82rem;
-  font-weight: 700;
-  transition: all 0.2s ease;
-}
-
-.add-pill-btn:hover {
-  background-color: var(--color-accent-hover);
-  transform: translateY(-1px);
-}
-
-.filters-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.search-bar {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  background-color: var(--bg-surface-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  padding: 0 14px;
-  gap: 8px;
-  transition: border-color 0.2s ease;
-}
-
-.search-bar:focus-within {
-  border-color: var(--color-accent);
-}
-
-.search-icon {
-  color: var(--text-muted);
-  flex-shrink: 0;
-}
-
-.search-input {
-  flex: 1;
-  background: none;
-  border: none;
-  padding: 10px 0;
-  color: var(--text-main);
-  font-size: 0.9rem;
-  outline: none;
-  min-width: 0;
-}
-
-.clear-btn {
-  color: var(--text-muted);
-  padding: 4px;
-  display: flex;
-  align-items: center;
-}
-
-.platform-filter {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background-color: var(--bg-surface-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  padding: 0 14px;
-}
-
-.filter-icon {
-  color: var(--text-muted);
-}
-
-.platform-select {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 0.82rem;
-  font-weight: 600;
-  outline: none;
-  cursor: pointer;
-  padding: 9px 0;
+  color: #0f0d15;
 }
 
 .tabs-container {
@@ -432,74 +242,169 @@ onMounted(() => {
   padding-bottom: 4px;
   scrollbar-width: none;
 }
-
 .tabs-container::-webkit-scrollbar {
   display: none;
 }
 
 .tab-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   padding: 8px 16px;
   background-color: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-full);
   color: var(--text-muted);
-  font-size: 0.84rem;
+  font-size: 0.85rem;
   font-weight: 500;
   white-space: nowrap;
   transition: all 0.2s;
 }
 
-.tab-btn:hover {
-  color: var(--text-main);
-}
-
 .tab-btn.active {
   background-color: var(--color-accent);
-  color: #0c0a14;
+  color: #0f0d15;
   border-color: var(--color-accent);
   font-weight: 700;
-}
-
-.tab-count {
-  font-size: 0.72rem;
-  opacity: 0.85;
-  background: rgba(0, 0, 0, 0.18);
-  padding: 1px 7px;
-  border-radius: var(--radius-full);
 }
 
 .page-body {
   padding-top: 24px;
 }
 
-.games-grid {
+.series-grid {
   display: grid;
+  gap: 16px;
 }
 
-.games-grid.grid-cols-2 {
+.series-grid.grid-cols-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
 
-.games-grid.grid-cols-4 {
+.series-grid.grid-cols-4 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
 @media (min-width: 640px) {
-  .games-grid.grid-cols-2 {
+  .series-grid.grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 20px;
   }
-  .games-grid.grid-cols-4 {
+  .series-grid.grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 16px;
   }
 }
 
-.loading-state,
-.empty-state {
+.series-card {
+  cursor: pointer;
+  transition: transform 0.2s;
+  min-width: 0;
+}
+
+.series-card:hover {
+  transform: translateY(-4px);
+}
+
+.poster-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+}
+
+.series-card.compact .poster-container {
+  border-radius: var(--radius-sm);
+}
+
+.poster-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.poster-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+
+.status-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.8);
+  color: var(--text-main);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  backdrop-filter: blur(4px);
+}
+
+.series-card.compact .status-badge {
+  top: 5px;
+  left: 5px;
+  font-size: 0.58rem;
+  padding: 1px 5px;
+}
+
+.rating-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.8);
+  color: var(--color-accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  backdrop-filter: blur(4px);
+}
+
+.series-card.compact .rating-badge {
+  top: 5px;
+  right: 5px;
+  font-size: 0.6rem;
+  padding: 1px 4px;
+}
+
+.series-info {
+  margin-top: 8px;
+}
+
+.series-card.compact .series-info {
+  margin-top: 5px;
+}
+
+.series-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.series-card.compact .series-title {
+  font-size: 0.74rem;
+}
+
+.series-seasons {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.series-card.compact .series-seasons {
+  font-size: 0.65rem;
+}
+
+.loading-state, .empty-state {
   text-align: center;
   padding: 60px 0;
   color: var(--text-muted);
@@ -520,9 +425,16 @@ onMounted(() => {
 .empty-desc {
   font-size: 0.85rem;
   margin-bottom: 20px;
-  max-width: 320px;
-  margin-left: auto;
-  margin-right: auto;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 12px;
 }
 
 @keyframes spin {
