@@ -644,8 +644,8 @@ onActivated(() => {
   display: flex;
   align-items: center;
   gap: 16px;
-  background: linear-gradient(135deg, rgba(192, 132, 252, 0.15) 0%, rgba(124, 58, 237, 0.15) 100%);
-  border: 1px solid rgba(192, 132, 252, 0.3);
+  background: linear-gradient(135deg, rgba(245, 197, 24, 0.12) 0%, rgba(166, 97, 48, 0.18) 100%);
+  border: 1px solid rgba(245, 197, 24, 0.25);
   border-radius: var(--radius-md);
   padding: 16px;
   margin-bottom: 18px;
@@ -822,36 +822,36 @@ onActivated(() => {
   position: absolute;
   top: 8px;
   left: 8px;
-  background: rgba(15, 13, 21, 0.85);
+  background: rgba(18, 16, 14, 0.85);
   color: var(--text-main);
   font-size: 0.65rem;
   font-weight: 700;
   padding: 2px 7px;
   border-radius: var(--radius-sm);
   backdrop-filter: blur(4px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--color-border);
 }
 
 .status-pill.watching {
   color: var(--color-accent);
-  border-color: rgba(192, 132, 252, 0.35);
+  border-color: rgba(245, 197, 24, 0.35);
 }
 
 .status-pill.completed {
   color: var(--color-success);
-  border-color: rgba(34, 197, 94, 0.35);
+  border-color: rgba(52, 211, 153, 0.35);
 }
 
 .status-pill.dropped {
-  color: var(--color-danger, #ef4444);
-  border-color: rgba(239, 68, 68, 0.35);
+  color: var(--color-danger);
+  border-color: rgba(248, 113, 113, 0.35);
 }
 
 .rating-pill {
   position: absolute;
   bottom: 8px;
   right: 8px;
-  background: rgba(15, 13, 21, 0.88);
+  background: rgba(18, 16, 14, 0.88);
   color: var(--color-accent);
   font-size: 0.72rem;
   font-weight: 700;
@@ -993,8 +993,8 @@ onActivated(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: rgba(192, 132, 252, 0.12);
-  border: 1px solid rgba(192, 132, 252, 0.4);
+  background: rgba(245, 197, 24, 0.12);
+  border: 1px solid rgba(245, 197, 24, 0.4);
   border-radius: var(--radius-md);
   padding: 12px;
   margin-bottom: 12px;

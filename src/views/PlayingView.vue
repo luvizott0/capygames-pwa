@@ -421,7 +421,7 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   background-color: var(--color-accent);
-  color: #0f0d15;
+  color: #12100e;
   font-weight: 700;
   font-size: 0.85rem;
   padding: 8px 16px;

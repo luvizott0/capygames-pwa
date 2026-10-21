@@ -1,42 +1,41 @@
 :root {
-  /* Paleta CapyGames (Dark Gaming Purple & Neon Accent) */
-  --bg-app: #0f0d15;
-  --bg-surface: #181523;
-  --bg-surface-elevated: #221d31;
-  --bg-surface-hover: #2e2742;
+  /* Paleta CapyShowTime (Warm Espresso, Terracotta & Golden Amber) */
+  --color-primary: #a66130;
+  --color-primary-light: #c4884e;
+  --color-accent: #f5c518;
+  --color-accent-hover: #e0b312;
+  --color-accent-dim: rgba(245, 197, 24, 0.15);
 
-  /* Roxo / Violeta CapyGames */
-  --color-primary: #7c3aed;
-  --color-primary-light: #9333ea;
-  --color-accent: #c084fc; /* Lilás neon de destaque */
-  --color-accent-hover: #a855f7;
-  --color-accent-dim: rgba(192, 132, 252, 0.14);
+  --bg-app: #12100e;
+  --bg-surface: #1c1815;
+  --bg-surface-elevated: #26211c;
+  --bg-surface-hover: #332c25;
+  --bg-modal: #1e1a17;
 
-  /* Textos */
-  --text-main: #f3f0f8;
-  --text-muted: #a39bb5;
-  --text-dim: #6e6582;
+  --color-border: #2f2821;
+  --color-border-subtle: #241f1a;
 
-  /* Feedback & Status */
-  --color-success: #4ade80;
+  --text-main: #f5efe6;
+  --text-muted: #9e9185;
+  --text-dim: #6e645a;
+
+  --color-success: #34d399;
   --color-danger: #f87171;
   --color-warning: #fbbf24;
-  --color-border: #2f2846;
-  --color-border-subtle: rgba(255, 255, 255, 0.06);
 
-  /* Tipografia */
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-heading: 'Space Mono', monospace;
+  --font-body: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
 
-  /* Bordas e Sombras (Mais quadradas / retas) */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-full: 6px;
+  /* Bordas mais quadradas estilo retrô CapiHouse / CapyFlix */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-full: 4px;
 
-  /* Safe area para iOS / Android PWA */
-  --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
 }
 
 * {
@@ -46,15 +45,19 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-html, body {
+body {
+  font-family: var(--font-body);
   background-color: var(--bg-app);
   color: var(--text-main);
-  font-family: var(--font-sans);
-  font-size: 16px;
   line-height: 1.5;
+  overscroll-behavior-y: contain;
+  -webkit-tap-highlight-color: transparent;
   min-height: 100vh;
-  overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
+}
+
+input, textarea, button, select {
+  font-family: inherit;
+  color: inherit;
 }
 
 a {
@@ -63,18 +66,12 @@ a {
 }
 
 button {
-  font-family: inherit;
-  cursor: pointer;
-  border: none;
   background: none;
+  border: none;
+  cursor: pointer;
 }
 
-input, textarea, select {
-  font-family: inherit;
-  color: inherit;
-}
-
-/* Scrollbar elegante */
+/* Custom Scrollbar - Quadrado CapiHouse */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -83,59 +80,86 @@ input, textarea, select {
   background: var(--bg-app);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--bg-surface-hover);
-  border-radius: var(--radius-sm);
+  background: var(--color-border);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
 }
 
-/* Utilitários Visuais */
+/* Utilitários */
 .container {
-  width: 100%;
-  max-width: 1024px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 0 16px;
 }
 
 .mono {
-  font-family: var(--font-mono);
+  font-family: var(--font-heading);
 }
 
 .badge-rating {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  background-color: var(--color-accent);
+  color: #12100e;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 0.8rem;
-  background: rgba(192, 132, 252, 0.15);
-  color: var(--color-accent);
-  border: 1px solid rgba(192, 132, 252, 0.35);
+  font-size: 0.75rem;
 }
 
 .badge-tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 10px;
-  border-radius: var(--radius-sm);
   font-size: 0.72rem;
-  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
   background-color: var(--bg-surface-elevated);
   color: var(--text-muted);
   border: 1px solid var(--color-border);
+  font-weight: 600;
 }
 
+.badge-platform {
+  background-color: rgba(166, 97, 48, 0.18);
+  color: var(--color-primary-light);
+  border-color: rgba(166, 97, 48, 0.35);
+}
+
+.badge-mastered {
+  background-color: var(--color-accent);
+  color: #12100e;
+  border-color: var(--color-accent);
+  font-weight: 700;
+}
+
+.badge-completed {
+  background-color: rgba(52, 211, 153, 0.18);
+  color: var(--color-success);
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
+.badge-playing {
+  background-color: rgba(245, 197, 24, 0.12);
+  color: var(--color-accent);
+  border-color: rgba(245, 197, 24, 0.3);
+}
+
+/* Botões Quadrados no Estilo CapiHouse */
 .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   background-color: var(--color-accent);
-  color: #0f0d15;
-  font-weight: 700;
-  padding: 10px 18px;
-  border-radius: var(--radius-md);
+  color: #12100e;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
   transition: all 0.2s ease;
+  font-size: 0.88rem;
+  border: 1px solid transparent;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -156,23 +180,84 @@ input, textarea, select {
   background-color: var(--bg-surface-elevated);
   color: var(--text-main);
   border: 1px solid var(--color-border);
-  font-weight: 600;
-  padding: 10px 18px;
-  border-radius: var(--radius-md);
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
   transition: all 0.2s ease;
+  font-size: 0.88rem;
 }
 
 .btn-secondary:hover:not(:disabled) {
   background-color: var(--bg-surface-hover);
-  border-color: var(--color-primary);
+  border-color: var(--color-primary-light);
 }
 
-/* Animação suave de entrada */
-.fade-in {
-  animation: fadeIn 0.25s ease-out;
+.section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: 0.02em;
 }
 
+/* Pílulas de Categoria Quadradas no Estilo CapiHouse */
+.genres-scroll-bar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 10px 0 2px;
+  scrollbar-width: none;
+}
+
+.genres-scroll-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.genre-pill {
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.genre-pill:hover {
+  color: var(--text-main);
+  border-color: var(--color-primary-light);
+}
+
+.genre-pill.active {
+  background-color: var(--color-accent);
+  color: #12100e;
+  border-color: var(--color-accent);
+  font-weight: 700;
+}
+
+/* Loading & Spinners */
+.spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid rgba(245, 197, 24, 0.2);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Animações */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.18s ease-out forwards;
 }

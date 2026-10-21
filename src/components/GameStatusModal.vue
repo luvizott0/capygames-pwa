@@ -272,7 +272,7 @@ function setScore(score: number) {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(8, 6, 14, 0.82);
+  background: rgba(18, 16, 14, 0.85);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   display: flex;
@@ -285,14 +285,14 @@ function setScore(score: number) {
 .modal-container {
   background: var(--bg-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   width: 100%;
   max-width: 520px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(124, 58, 237, 0.2);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
 }
 
 .modal-header {
@@ -440,9 +440,9 @@ function setScore(score: number) {
 }
 
 .status-btn.btn-plan_to_play {
-  background: rgba(139, 92, 246, 0.2);
-  border-color: #8b5cf6;
-  color: #c084fc;
+  background: rgba(245, 197, 24, 0.15);
+  border-color: rgba(245, 197, 24, 0.4);
+  color: var(--color-accent);
 }
 
 .status-btn.btn-on_hold {
@@ -528,16 +528,16 @@ function setScore(score: number) {
 }
 
 .rating-box.selected {
-  background: rgba(168, 85, 247, 0.15);
-  border-color: rgba(168, 85, 247, 0.4);
-  color: #c084fc;
+  background: rgba(245, 197, 24, 0.15);
+  border-color: rgba(245, 197, 24, 0.4);
+  color: var(--color-accent);
 }
 
 .rating-box.exact {
   background: var(--color-accent);
   border-color: var(--color-accent);
-  color: #0c0a14;
-  box-shadow: 0 0 12px rgba(168, 85, 247, 0.5);
+  color: #12100e;
+  box-shadow: 0 0 12px rgba(245, 197, 24, 0.4);
 }
 
 .modal-footer {
@@ -560,8 +560,8 @@ function setScore(score: number) {
   color: var(--color-danger);
   width: 38px;
   height: 38px;
-  border-radius: var(--radius-full);
-  background: rgba(239, 68, 68, 0.1);
+  border-radius: var(--radius-sm);
+  background: rgba(248, 113, 113, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -569,7 +569,7 @@ function setScore(score: number) {
 }
 
 .btn-delete:hover {
-  background: rgba(239, 68, 68, 0.2);
+  background: rgba(248, 113, 113, 0.2);
 }
 
 .btn-cancel {
@@ -577,7 +577,7 @@ function setScore(score: number) {
   color: var(--text-muted);
   font-size: 0.88rem;
   font-weight: 600;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   background: var(--bg-surface);
   border: 1px solid var(--color-border);
   transition: all 0.2s ease;
@@ -594,12 +594,12 @@ function setScore(score: number) {
   gap: 6px;
   padding: 10px 22px;
   background: var(--color-accent);
-  color: #0c0a14;
+  color: #12100e;
   font-size: 0.88rem;
   font-weight: 700;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.35);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
 .btn-save:hover:not(:disabled) {

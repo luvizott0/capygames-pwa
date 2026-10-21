@@ -359,9 +359,9 @@ onMounted(() => {
 }
 
 .activity-type-badge.rating {
-  background: rgba(192, 132, 252, 0.15);
+  background: rgba(245, 197, 24, 0.15);
   color: var(--color-accent);
-  border: 1px solid rgba(192, 132, 252, 0.3);
+  border: 1px solid rgba(245, 197, 24, 0.3);
 }
 
 .activity-type-badge.comment {

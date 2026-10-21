@@ -137,7 +137,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   padding: calc(var(--safe-top) + 20px) 20px calc(var(--safe-bottom) + 20px);
-  background: radial-gradient(circle at top, #221d31 0%, #0f0d15 70%);
+  background: radial-gradient(circle at top, #26211c 0%, #12100e 70%);
 }
 
 .login-card {
@@ -145,7 +145,7 @@ onMounted(async () => {
   max-width: 380px;
   background-color: var(--bg-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   padding: 32px 24px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
 }
@@ -162,10 +162,10 @@ onMounted(async () => {
   width: 72px;
   height: 72px;
   background-color: var(--color-accent);
-  color: #0f0d15;
-  border-radius: var(--radius-md);
+  color: #12100e;
+  border-radius: var(--radius-sm);
   margin-bottom: 16px;
-  box-shadow: 0 0 24px rgba(192, 132, 252, 0.35);
+  box-shadow: 0 0 24px rgba(245, 197, 24, 0.35);
 }
 
 .app-title {
@@ -263,7 +263,7 @@ onMounted(async () => {
 
 .dev-submit-btn {
   width: 100%;
-  border-color: rgba(192, 132, 252, 0.35);
+  border-color: rgba(245, 197, 24, 0.35);
   color: var(--color-accent);
 }
 </style>

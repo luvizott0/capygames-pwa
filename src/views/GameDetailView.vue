@@ -395,7 +395,7 @@ onMounted(() => {
 .backdrop-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, rgba(15, 13, 21, 0.2) 0%, rgba(15, 13, 21, 0.95) 100%);
+  background: linear-gradient(to bottom, rgba(18, 16, 14, 0.2) 0%, rgba(18, 16, 14, 0.95) 100%);
 }
 
 .back-btn {
@@ -518,8 +518,8 @@ onMounted(() => {
 }
 
 .rating-card.highlight {
-  border-color: rgba(192, 132, 252, 0.35);
-  background: linear-gradient(180deg, rgba(192, 132, 252, 0.08) 0%, var(--bg-surface) 100%);
+  border-color: rgba(245, 197, 24, 0.35);
+  background: linear-gradient(180deg, rgba(245, 197, 24, 0.08) 0%, var(--bg-surface) 100%);
 }
 
 .rating-label {
@@ -639,7 +639,7 @@ onMounted(() => {
 
 .season-avg-badge {
   background-color: var(--color-accent);
-  color: #0f0d15;
+  color: #12100e;
   font-size: 0.75rem;
   font-weight: 700;
   padding: 2px 8px;
@@ -672,7 +672,7 @@ onMounted(() => {
   gap: 4px;
   font-size: 0.72rem;
   font-weight: 700;
-  color: #0f0d15;
+  color: #12100e;
   background-color: var(--color-accent);
   padding: 2px 7px;
   border-radius: var(--radius-sm);
@@ -699,7 +699,7 @@ onMounted(() => {
 }
 
 .season-watch-all-btn.all-watched {
-  background-color: rgba(192, 132, 252, 0.15);
+  background-color: rgba(245, 197, 24, 0.15);
   border-color: var(--color-accent);
   color: var(--color-accent);
 }
@@ -719,7 +719,7 @@ onMounted(() => {
 }
 
 .review-card.highlight {
-  border-color: rgba(192, 132, 252, 0.35);
+  border-color: rgba(245, 197, 24, 0.35);
 }
 
 .review-card-header {

@@ -1,9 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
-import PlayingView from '@/views/PlayingView.vue'
+import HomeView from '@/views/HomeView.vue'
 import DiscoverView from '@/views/DiscoverView.vue'
 import MyLibraryView from '@/views/MyLibraryView.vue'
+import CollectionView from '@/views/CollectionView.vue'
 import GameDetailView from '@/views/GameDetailView.vue'
 import CommunityView from '@/views/CommunityView.vue'
 import ProfileView from '@/views/ProfileView.vue'
@@ -24,8 +25,8 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'playing',
-      component: PlayingView,
+      name: 'home',
+      component: HomeView,
       meta: { requiresAuth: true }
     },
     {
@@ -33,6 +34,10 @@ const router = createRouter({
       name: 'discover',
       component: DiscoverView,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/search',
+      redirect: '/discover'
     },
     {
       path: '/my-list',
@@ -43,6 +48,16 @@ const router = createRouter({
     {
       path: '/library',
       redirect: '/my-list'
+    },
+    {
+      path: '/playing',
+      redirect: '/'
+    },
+    {
+      path: '/collection/:id',
+      name: 'collection',
+      component: CollectionView,
+      meta: { requiresAuth: true }
     },
     {
       path: '/game/:id',
@@ -85,7 +100,7 @@ router.beforeEach(async (to, _from, next) => {
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next({ name: 'login' })
   } else if (to.meta.guestOnly && authStore.isAuthenticated) {
-    next({ name: 'playing' })
+    next({ name: 'home' })
   } else {
     next()
   }

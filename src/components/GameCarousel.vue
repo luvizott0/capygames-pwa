@@ -1,0 +1,202 @@
+<template>
+  <section v-if="items.length > 0" class="carousel-section">
+    <div class="carousel-header">
+      <h2 class="section-title mono">{{ title }}</h2>
+      <div v-if="viewAllRoute" class="header-right-actions">
+        <router-link
+          :to="viewAllRoute"
+          class="view-all-btn mono"
+          title="Ver lista completa"
+        >
+          <span>Ver todos</span>
+          <ChevronRight :size="14" />
+        </router-link>
+      </div>
+    </div>
+
+    <div class="carousel-wrapper">
+      <button
+        v-if="canScrollLeft"
+        type="button"
+        class="nav-btn prev"
+        aria-label="Anterior"
+        @click="scroll(-1)"
+      >
+        <ChevronLeft :size="18" />
+      </button>
+
+      <div ref="trackRef" class="carousel-track" @scroll="onTrackScroll">
+        <div
+          v-for="(item, idx) in items"
+          :key="item.id || item.game?.id || idx"
+          class="carousel-item"
+        >
+          <slot :item="item">
+            <GameCard :game="item.game || item" :user-game="item.game ? item : undefined" />
+          </slot>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="nav-btn next"
+        aria-label="Próximo"
+        @click="scroll(1)"
+      >
+        <ChevronRight :size="18" />
+      </button>
+    </div>
+  </section>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import GameCard from './GameCard.vue'
+
+withDefaults(
+  defineProps<{
+    title: string
+    items: any[]
+    viewAllRoute?: string
+  }>(),
+  {}
+)
+
+const trackRef = ref<HTMLElement | null>(null)
+const canScrollLeft = ref(false)
+
+function onTrackScroll() {
+  if (trackRef.value) {
+    canScrollLeft.value = trackRef.value.scrollLeft > 20
+  }
+}
+
+function scroll(direction: number) {
+  if (!trackRef.value) return
+  const itemWidth = 150 + 14
+  const scrollAmount = itemWidth * 3 * direction
+  trackRef.value.scrollBy({
+    left: scrollAmount,
+    behavior: 'smooth'
+  })
+}
+</script>
+
+<style scoped>
+.carousel-section {
+  margin: 24px 0;
+  position: relative;
+}
+
+.carousel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.header-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.view-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  text-decoration: none;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(245, 197, 24, 0.08);
+  border: 1px solid rgba(245, 197, 24, 0.25);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.view-all-btn:hover {
+  background: var(--color-accent);
+  color: #12100e;
+  border-color: var(--color-accent);
+}
+
+.carousel-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.carousel-track {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  padding: 4px 0 12px 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.carousel-track::-webkit-scrollbar {
+  display: none;
+}
+
+.carousel-item {
+  flex: 0 0 135px;
+  width: 135px;
+}
+
+@media (min-width: 640px) {
+  .carousel-item {
+    flex: 0 0 155px;
+    width: 155px;
+  }
+}
+
+.nav-btn {
+  position: absolute;
+  top: 45%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: rgba(22, 19, 17, 0.9);
+  border: 1px solid var(--color-border);
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+  opacity: 0;
+}
+
+.carousel-wrapper:hover .nav-btn {
+  opacity: 1;
+}
+
+.nav-btn:hover {
+  background: var(--color-accent);
+  color: #12100e;
+  border-color: var(--color-accent);
+}
+
+.nav-btn.prev {
+  left: -8px;
+}
+
+.nav-btn.next {
+  right: -8px;
+}
+
+@media (max-width: 768px) {
+  .nav-btn {
+    display: none !important;
+  }
+}
+</style>

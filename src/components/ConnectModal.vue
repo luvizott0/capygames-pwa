@@ -118,7 +118,7 @@ async function handleSubmit() {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(8, 6, 14, 0.82);
+  background: rgba(18, 16, 14, 0.85);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
@@ -130,7 +130,7 @@ async function handleSubmit() {
 .modal-container {
   background: var(--bg-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   width: 100%;
   max-width: 440px;
   overflow: hidden;

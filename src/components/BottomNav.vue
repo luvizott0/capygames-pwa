@@ -2,12 +2,12 @@
   <nav class="bottom-nav">
     <router-link to="/" class="nav-item" active-class="active" exact>
       <Gamepad2 :size="22" />
-      <span>Jogar</span>
+      <span>Início</span>
     </router-link>
 
     <router-link to="/discover" class="nav-item" active-class="active">
-      <Compass :size="22" />
-      <span>Descobrir</span>
+      <Search :size="22" />
+      <span>Buscar</span>
     </router-link>
 
     <router-link to="/my-list" class="nav-item" active-class="active">
@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { Gamepad2, Compass, Bookmark, Users, User as UserIcon } from 'lucide-vue-next'
+import { Gamepad2, Search, Bookmark, Users, User as UserIcon } from 'lucide-vue-next'
 </script>
 
 <style scoped>
@@ -39,7 +39,7 @@ import { Gamepad2, Compass, Bookmark, Users, User as UserIcon } from 'lucide-vue
   right: 0;
   height: calc(64px + var(--safe-bottom));
   padding-bottom: var(--safe-bottom);
-  background-color: rgba(20, 17, 29, 0.95);
+  background-color: rgba(22, 19, 17, 0.95);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-top: 1px solid var(--color-border);
