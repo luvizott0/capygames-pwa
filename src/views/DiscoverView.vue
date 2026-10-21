@@ -2,10 +2,21 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { capyGamesApi, type GameSearchResult } from '@/api/capygames'
+import { useGridMode } from '@/composables/useGridMode'
 import GameStatusModal from '@/components/GameStatusModal.vue'
-import { Search, Compass, Plus, Flame, Sparkles, RefreshCw, ArrowLeft } from 'lucide-vue-next'
+import {
+  Search,
+  Plus,
+  Flame,
+  RotateCw,
+  X,
+  Gamepad2,
+  Grid2x2,
+  LayoutGrid
+} from 'lucide-vue-next'
 
 const router = useRouter()
+const { gridCols, setGridCols } = useGridMode()
 
 const query = ref('')
 const searchResults = ref<GameSearchResult[]>([])
@@ -15,6 +26,8 @@ const isLoadingPopular = ref(true)
 
 const isModalOpen = ref(false)
 const selectedGameCandidate = ref<GameSearchResult | null>(null)
+
+const defaultCover = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=400&q=80'
 
 let debounceTimer: any = null
 
@@ -76,132 +89,207 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="discover-view container">
+  <div class="discover-page">
     <header class="page-header">
-      <div class="header-left">
-        <button class="back-btn" @click="router.push('/')">
-          <ArrowLeft :size="20" />
-        </button>
-        <div>
-          <h1 class="page-title">Explorar Catálogo</h1>
-          <p class="subtitle">Adicione jogos da Steam, Xbox ou crie manuais</p>
+      <div class="container">
+        <div class="header-top">
+          <h1 class="header-title mono">Descobrir Jogos</h1>
+
+          <div class="header-actions">
+            <!-- Toggle Grid 2 ou 4 colunas -->
+            <div class="grid-toggle" role="group" aria-label="Modo de visualização">
+              <button
+                type="button"
+                class="grid-toggle-btn mono"
+                :class="{ active: gridCols === 2 }"
+                title="Grid de 2 colunas"
+                @click="setGridCols(2)"
+              >
+                <Grid2x2 :size="15" />
+                <span>2</span>
+              </button>
+              <button
+                type="button"
+                class="grid-toggle-btn mono"
+                :class="{ active: gridCols === 4 }"
+                title="Grid de 4 colunas"
+                @click="setGridCols(4)"
+              >
+                <LayoutGrid :size="15" />
+                <span>4</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              class="custom-pill-btn"
+              @click="openCustomModal"
+            >
+              <Plus :size="15" />
+              <span>Manual</span>
+            </button>
+
+            <button
+              v-if="!query.trim()"
+              type="button"
+              class="refresh-btn"
+              :class="{ spinning: isLoadingPopular }"
+              :disabled="isLoadingPopular"
+              title="Recarregar populares"
+              @click="fetchPopular"
+            >
+              <RotateCw :size="18" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Barra de Busca por Texto (estilo CapyShowTime) -->
+        <div class="search-bar">
+          <Search :size="18" class="search-icon" />
+          <input
+            v-model="query"
+            type="search"
+            class="search-input"
+            placeholder="Buscar por título (ex: Zelda, Elden Ring, Halo)..."
+          />
+          <button v-if="query" type="button" class="clear-btn" @click="query = ''">
+            <X :size="16" />
+          </button>
         </div>
       </div>
-
-      <button class="custom-add-btn" @click="openCustomModal">
-        <Plus :size="16" />
-        <span>Personalizado</span>
-      </button>
     </header>
 
-    <!-- Search Input -->
-    <div class="search-bar">
-      <Search :size="20" class="search-icon" />
-      <input
-        v-model="query"
-        type="text"
-        class="search-input"
-        placeholder="Digite o nome de qualquer jogo (ex: Zelda, Elden Ring, Halo...)"
-        autofocus
-      />
-      <RefreshCw v-if="isSearching" :size="18" class="spin search-spinner" />
-    </div>
+    <main class="container page-body">
+      <!-- Search Results -->
+      <section v-if="query.trim().length >= 2" class="section fade-in">
+        <div class="section-header">
+          <h2 class="section-title mono">Resultados da Busca</h2>
+          <span class="results-count mono">{{ searchResults.length }} jogos</span>
+        </div>
 
-    <!-- Search Results -->
-    <section v-if="query.trim().length >= 2" class="section">
-      <div class="section-header">
-        <h2 class="section-title">
-          <Search :size="18" class="text-accent" />
-          <span>Resultados para "{{ query }}"</span>
-        </h2>
-        <span class="results-count mono">{{ searchResults.length }} encontrados</span>
-      </div>
+        <div v-if="isSearching && searchResults.length === 0" class="loading-state">
+          <div class="spinner"></div>
+          <p>Buscando nos catálogos Steam e Xbox...</p>
+        </div>
 
-      <div v-if="isSearching && searchResults.length === 0" class="loading-box">
-        <RefreshCw :size="28" class="spin text-accent" />
-        <p>Buscando nos catálogos Steam e Xbox...</p>
-      </div>
+        <div v-else-if="searchResults.length === 0" class="empty-search">
+          <p>Nenhum jogo encontrado para "{{ query }}".</p>
+          <button type="button" class="btn-primary mt-btn" @click="openCustomModal">
+            <Plus :size="18" />
+            <span>Cadastrar "{{ query }}" Manualmente</span>
+          </button>
+        </div>
 
-      <div v-else-if="searchResults.length === 0" class="no-results">
-        <p>Nenhum jogo encontrado com esse nome.</p>
-        <button class="btn-create-manual" @click="openCustomModal">
-          <Plus :size="18" />
-          <span>Cadastrar "{{ query }}" Manualmente</span>
-        </button>
-      </div>
-
-      <div v-else class="results-grid fade-in">
         <div
-          v-for="game in searchResults"
-          :key="game.external_id"
-          class="result-card"
+          v-else
+          class="results-grid"
+          :class="gridCols === 4 ? 'grid-cols-4' : 'grid-cols-2'"
         >
-          <div class="card-cover-wrapper">
-            <img
-              :src="game.cover_url || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=400&q=80'"
-              :alt="game.title"
-              class="card-cover"
-              loading="lazy"
-            />
-            <span class="source-tag" :class="game.external_source">
-              {{ game.external_source }}
-            </span>
-          </div>
+          <div
+            v-for="game in searchResults"
+            :key="game.external_id"
+            class="discover-card"
+            :class="{ compact: gridCols === 4 }"
+            @click="openAddModal(game)"
+          >
+            <div class="poster-container">
+              <img
+                v-if="game.cover_url"
+                :src="game.cover_url"
+                :alt="game.title"
+                class="poster-img"
+                loading="lazy"
+                @error="($event.target as HTMLImageElement).src = defaultCover"
+              />
+              <div v-else class="poster-placeholder">
+                <Gamepad2 :size="gridCols === 4 ? 22 : 28" />
+              </div>
 
-          <div class="card-details">
-            <h3 class="card-title" :title="game.title">{{ game.title }}</h3>
-            <p v-if="game.platforms" class="card-platform">{{ game.platforms.join(', ') }}</p>
-            
-            <button class="btn-add-library" @click="openAddModal(game)">
-              <Plus :size="16" />
-              <span>Adicionar</span>
-            </button>
+              <span class="source-badge" :class="game.external_source">
+                {{ game.external_source }}
+              </span>
+
+              <button
+                type="button"
+                class="quick-add-badge"
+                title="Adicionar à biblioteca"
+                @click.stop="openAddModal(game)"
+              >
+                <Plus :size="gridCols === 4 ? 13 : 16" />
+              </button>
+            </div>
+
+            <div class="card-info">
+              <h3 class="card-title" :title="game.title">{{ game.title }}</h3>
+              <span v-if="game.platforms" class="card-platform">
+                {{ game.platforms.join(', ') }}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- Popular & Featured Section -->
-    <section v-else class="section">
-      <div class="section-header">
-        <h2 class="section-title">
-          <Flame :size="20" class="text-flame" />
-          <span>Populares na Comunidade</span>
-        </h2>
-      </div>
+      <!-- Popular & Featured Section -->
+      <section v-else class="section fade-in">
+        <div class="section-header">
+          <h2 class="section-title mono">
+            <Flame :size="18" class="text-flame" />
+            <span>Populares na Comunidade</span>
+          </h2>
+        </div>
 
-      <div v-if="isLoadingPopular" class="loading-box">
-        <RefreshCw :size="24" class="spin text-accent" />
-      </div>
+        <div v-if="isLoadingPopular" class="loading-state">
+          <div class="spinner"></div>
+          <p>Carregando jogos em alta...</p>
+        </div>
 
-      <div v-else class="results-grid fade-in">
         <div
-          v-for="game in popularGames"
-          :key="game.external_id"
-          class="result-card"
+          v-else
+          class="results-grid"
+          :class="gridCols === 4 ? 'grid-cols-4' : 'grid-cols-2'"
         >
-          <div class="card-cover-wrapper">
-            <img
-              :src="game.cover_url"
-              :alt="game.title"
-              class="card-cover"
-              loading="lazy"
-            />
-            <span class="source-tag steam">Steam</span>
-          </div>
+          <div
+            v-for="game in popularGames"
+            :key="game.external_id"
+            class="discover-card"
+            :class="{ compact: gridCols === 4 }"
+            @click="openAddModal(game)"
+          >
+            <div class="poster-container">
+              <img
+                v-if="game.cover_url"
+                :src="game.cover_url"
+                :alt="game.title"
+                class="poster-img"
+                loading="lazy"
+                @error="($event.target as HTMLImageElement).src = defaultCover"
+              />
+              <div v-else class="poster-placeholder">
+                <Gamepad2 :size="gridCols === 4 ? 22 : 28" />
+              </div>
 
-          <div class="card-details">
-            <h3 class="card-title" :title="game.title">{{ game.title }}</h3>
-            <p v-if="game.platforms" class="card-platform">{{ game.platforms.join(', ') }}</p>
+              <span class="source-badge steam">Steam</span>
 
-            <button class="btn-add-library" @click="openAddModal(game)">
-              <Plus :size="16" />
-              <span>Adicionar</span>
-            </button>
+              <button
+                type="button"
+                class="quick-add-badge"
+                title="Adicionar à biblioteca"
+                @click.stop="openAddModal(game)"
+              >
+                <Plus :size="gridCols === 4 ? 13 : 16" />
+              </button>
+            </div>
+
+            <div class="card-info">
+              <h3 class="card-title" :title="game.title">{{ game.title }}</h3>
+              <span v-if="game.platforms" class="card-platform">
+                {{ game.platforms.join(', ') }}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </main>
 
     <!-- Modal de adição -->
     <GameStatusModal
@@ -214,118 +302,162 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.discover-view {
-  padding-top: 16px;
-  padding-bottom: 30px;
+.discover-page {
+  padding-bottom: 90px;
 }
 
 .page-header {
+  padding: calc(var(--safe-top) + 16px) 0 12px;
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.header-top {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.header-left {
-  display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 
-.back-btn {
-  color: var(--text-muted);
-  padding: 8px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface);
-  border: 1px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.back-btn:hover {
-  color: var(--text-main);
-  background: var(--bg-surface-hover);
-}
-
-.page-title {
+.header-title {
   font-size: 1.35rem;
-  font-weight: 800;
-  color: var(--text-main);
-  line-height: 1.2;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
-.subtitle {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.custom-add-btn {
+.header-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: var(--bg-surface);
+  gap: 8px;
+}
+
+.grid-toggle {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
-  color: var(--text-main);
-  border-radius: var(--radius-sm);
-  font-size: 0.82rem;
-  font-weight: 600;
+  border-radius: var(--radius-full);
+  padding: 3px;
+  gap: 2px;
+}
+
+.grid-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: var(--radius-full);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
   transition: all 0.2s ease;
 }
 
-.custom-add-btn:hover {
-  background: var(--bg-surface-hover);
-  border-color: var(--color-accent);
+.grid-toggle-btn:hover {
+  color: var(--text-main);
 }
 
-.search-bar {
-  position: relative;
-  display: flex;
+.grid-toggle-btn.active {
+  background-color: var(--color-accent);
+  color: #0c0a14;
+}
+
+.custom-pill-btn {
+  display: inline-flex;
   align-items: center;
-  margin-bottom: 24px;
+  gap: 5px;
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--text-main);
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.2s;
 }
 
-.search-icon {
-  position: absolute;
-  left: 14px;
-  color: var(--text-dim);
-}
-
-.search-spinner {
-  position: absolute;
-  right: 14px;
+.custom-pill-btn:hover {
+  border-color: var(--color-accent);
   color: var(--color-accent);
 }
 
-.search-input {
-  width: 100%;
-  background: var(--bg-surface);
+.refresh-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 14px 44px 14px 44px;
-  color: var(--text-main);
-  font-size: 0.95rem;
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  color: var(--text-muted);
+  transition: all 0.2s;
+  flex-shrink: 0;
 }
 
-.search-input:focus {
+.refresh-btn:hover {
+  color: var(--color-accent);
   border-color: var(--color-accent);
-  box-shadow: 0 0 16px rgba(124, 58, 237, 0.2);
+}
+
+.refresh-btn.spinning svg {
+  animation: spin 0.8s linear infinite;
+  color: var(--color-accent);
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 0 16px;
+  gap: 8px;
+  transition: border-color 0.2s ease;
+}
+
+.search-bar:focus-within {
+  border-color: var(--color-accent);
+}
+
+.search-icon {
+  color: var(--text-muted);
+}
+
+.search-input {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 12px 0;
+  color: var(--text-main);
+  font-size: 0.92rem;
+  outline: none;
+}
+
+.clear-btn {
+  color: var(--text-muted);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.page-body {
+  padding-top: 24px;
 }
 
 .section {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  margin-bottom: 32px;
 }
 
 .section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-bottom: 16px;
 }
 
 .section-title {
@@ -338,7 +470,7 @@ onMounted(() => {
 }
 
 .text-flame {
-  color: #f97316;
+  color: var(--color-accent);
 }
 
 .results-count {
@@ -348,88 +480,156 @@ onMounted(() => {
 
 .results-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
 }
 
-@media (min-width: 500px) {
-  .results-grid {
-    grid-template-columns: repeat(3, 1fr);
+.results-grid.grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.results-grid.grid-cols-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (min-width: 640px) {
+  .results-grid.grid-cols-2 {
+    gap: 20px;
+  }
+  .results-grid.grid-cols-4 {
     gap: 16px;
   }
 }
 
-@media (min-width: 720px) {
-  .results-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 18px;
-  }
-}
-
-.result-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
+.discover-card {
+  cursor: pointer;
+  transition: transform 0.2s ease;
   display: flex;
   flex-direction: column;
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  min-width: 0;
 }
 
-.result-card:hover {
+.discover-card:hover {
   transform: translateY(-4px);
-  border-color: var(--color-accent);
 }
 
-.card-cover-wrapper {
+.discover-card:active {
+  transform: scale(0.97);
+}
+
+.poster-container {
   position: relative;
   width: 100%;
   aspect-ratio: 2 / 3;
-  background: #120e20;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.card-cover {
+.discover-card.compact .poster-container {
+  border-radius: var(--radius-sm);
+}
+
+.discover-card:hover .poster-container {
+  border-color: var(--color-accent);
+  box-shadow: 0 8px 22px rgba(124, 58, 237, 0.22);
+}
+
+.poster-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.3s ease;
 }
 
-.source-tag {
+.discover-card:hover .poster-img {
+  transform: scale(1.04);
+}
+
+.poster-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+
+.source-badge {
   position: absolute;
   top: 8px;
-  right: 8px;
+  left: 8px;
   font-size: 0.65rem;
   font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
   text-transform: uppercase;
+  backdrop-filter: blur(6px);
+  background: rgba(12, 10, 20, 0.8);
+  color: var(--text-main);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-.source-tag.steam {
+.discover-card.compact .source-badge {
+  top: 5px;
+  left: 5px;
+  font-size: 0.56rem;
+  padding: 2px 6px;
+}
+
+.source-badge.steam {
   background: rgba(37, 99, 235, 0.85);
   color: #fff;
 }
 
-.source-tag.xbox {
+.source-badge.xbox {
   background: rgba(22, 163, 74, 0.85);
   color: #fff;
 }
 
-.source-tag.manual {
-  background: rgba(124, 58, 237, 0.85);
-  color: #fff;
+.quick-add-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-accent);
+  color: #0c0a14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  transition: transform 0.2s ease, background-color 0.2s ease;
 }
 
-.card-details {
-  padding: 10px;
+.discover-card.compact .quick-add-badge {
+  bottom: 5px;
+  right: 5px;
+  width: 24px;
+  height: 24px;
+}
+
+.quick-add-badge:hover {
+  background-color: var(--color-accent-hover);
+  transform: scale(1.08);
+}
+
+.card-info {
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  flex: 1;
+  gap: 2px;
+}
+
+.discover-card.compact .card-info {
+  margin-top: 5px;
 }
 
 .card-title {
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   font-weight: 600;
   color: var(--text-main);
   white-space: nowrap;
@@ -437,67 +637,34 @@ onMounted(() => {
   text-overflow: ellipsis;
 }
 
+.discover-card.compact .card-title {
+  font-size: 0.74rem;
+}
+
 .card-platform {
-  font-size: 0.72rem;
-  color: var(--text-muted);
+  font-size: 0.74rem;
+  color: var(--text-dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.btn-add-library {
-  margin-top: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 7px 10px;
-  background: var(--color-primary);
-  color: #fff;
-  border-radius: var(--radius-sm);
-  font-size: 0.78rem;
-  font-weight: 600;
-  transition: all 0.2s ease;
+.discover-card.compact .card-platform {
+  font-size: 0.65rem;
 }
 
-.btn-add-library:hover {
-  background: var(--color-primary-light);
-}
-
-.loading-box,
-.no-results {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 50px 20px;
-  gap: 12px;
-  color: var(--text-muted);
+.loading-state,
+.empty-search {
   text-align: center;
+  padding: 50px 20px;
+  color: var(--text-muted);
 }
 
-.btn-create-manual {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--color-primary);
-  color: #fff;
-  padding: 9px 16px;
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.spin {
-  animation: spin 1s linear infinite;
+.mt-btn {
+  margin-top: 16px;
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
-}
-
-.text-accent {
-  color: var(--color-accent);
 }
 </style>

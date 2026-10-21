@@ -322,35 +322,37 @@ onMounted(() => {
   font-size: 0.72rem;
   color: var(--text-muted);
   background: var(--bg-surface-elevated);
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
 }
 
 .action-btn {
   align-self: flex-start;
   margin-top: 6px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
-  background: var(--color-primary);
-  color: #fff;
-  border-radius: var(--radius-sm);
-  font-size: 0.82rem;
-  font-weight: 600;
+  padding: 9px 18px;
+  background: var(--color-accent);
+  color: #0c0a14;
+  border-radius: var(--radius-full);
+  font-size: 0.84rem;
+  font-weight: 700;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+  box-shadow: 0 4px 14px rgba(168, 85, 247, 0.35);
 }
 
 .action-btn:hover {
-  background: var(--color-primary-light);
+  background: var(--color-accent-hover);
+  transform: translateY(-1px);
 }
 
 .my-status-box {
   background: var(--bg-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 16px;
+  border-radius: var(--radius-lg);
+  padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 14px;

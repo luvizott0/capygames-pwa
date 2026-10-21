@@ -2,19 +2,24 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { capyGamesApi, type GameActivity } from '@/api/capygames'
-import { Flame, Trophy, Star, MessageSquare, Clock, RefreshCw, Gamepad2 } from 'lucide-vue-next'
+import { Trophy, Star, Clock, RotateCw, Gamepad2, Users } from 'lucide-vue-next'
 
 const router = useRouter()
 
 const activities = ref<GameActivity[]>([])
+const houseUsers = ref<any[]>([])
 const isLoading = ref(true)
 const activeFilter = ref<'all' | 'milestones' | 'achievements' | 'reviews'>('all')
 
 async function fetchFeed() {
   isLoading.value = true
   try {
-    const res = await capyGamesApi.getFeed(40)
-    activities.value = res.data.data
+    const [feedRes, usersRes] = await Promise.all([
+      capyGamesApi.getFeed(40),
+      capyGamesApi.getUsers()
+    ])
+    activities.value = feedRes.data.data
+    houseUsers.value = usersRes.data.data || []
   } catch (err) {
     console.error('Falha ao buscar feed:', err)
   } finally {
@@ -69,183 +74,224 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="community-view container">
+  <div class="community-page">
     <header class="page-header">
-      <div class="header-left">
-        <div class="title-with-icon">
-          <Flame :size="24" class="text-flame" />
-          <h1 class="page-title">Feed da Comunidade</h1>
+      <div class="container">
+        <div class="header-top">
+          <div>
+            <h1 class="header-title mono">Atividades da CapyGames</h1>
+            <p class="header-subtitle">O que os amigos da capihouse estão jogando</p>
+          </div>
+          <button
+            type="button"
+            class="refresh-btn"
+            :class="{ spinning: isLoading }"
+            :disabled="isLoading"
+            title="Recarregar atividades"
+            @click="fetchFeed"
+          >
+            <RotateCw :size="18" />
+          </button>
         </div>
-        <p class="subtitle">Conquistas, zeramentos e reviews dos moradores</p>
-      </div>
 
-      <button class="icon-btn" title="Atualizar feed" @click="fetchFeed">
-        <RefreshCw :size="18" :class="{ spin: isLoading }" />
-      </button>
+        <!-- Filtros em Pílula -->
+        <div class="filters-bar">
+          <button
+            type="button"
+            class="filter-pill"
+            :class="{ active: activeFilter === 'all' }"
+            @click="activeFilter = 'all'"
+          >
+            Todas
+          </button>
+          <button
+            type="button"
+            class="filter-pill"
+            :class="{ active: activeFilter === 'milestones' }"
+            @click="activeFilter = 'milestones'"
+          >
+            🏆 Zeramentos & Platinas
+          </button>
+          <button
+            type="button"
+            class="filter-pill"
+            :class="{ active: activeFilter === 'achievements' }"
+            @click="activeFilter = 'achievements'"
+          >
+            🎮 Conquistas
+          </button>
+          <button
+            type="button"
+            class="filter-pill"
+            :class="{ active: activeFilter === 'reviews' }"
+            @click="activeFilter = 'reviews'"
+          >
+            📝 Análises
+          </button>
+        </div>
+      </div>
     </header>
 
-    <!-- Filters Bar -->
-    <div class="filters-bar">
-      <button
-        class="filter-pill"
-        :class="{ active: activeFilter === 'all' }"
-        @click="activeFilter = 'all'"
-      >
-        Todas
-      </button>
-      <button
-        class="filter-pill"
-        :class="{ active: activeFilter === 'milestones' }"
-        @click="activeFilter = 'milestones'"
-      >
-        🏆 Zeramentos & Platinas
-      </button>
-      <button
-        class="filter-pill"
-        :class="{ active: activeFilter === 'achievements' }"
-        @click="activeFilter = 'achievements'"
-      >
-        🎮 Conquistas
-      </button>
-      <button
-        class="filter-pill"
-        :class="{ active: activeFilter === 'reviews' }"
-        @click="activeFilter = 'reviews'"
-      >
-        📝 Análises
-      </button>
-    </div>
-
-    <!-- Feed Content -->
-    <div v-if="isLoading && activities.length === 0" class="loading-state">
-      <RefreshCw :size="32" class="spin text-accent" />
-      <p>Buscando atividades dos moradores...</p>
-    </div>
-
-    <div v-else-if="filteredActivities.length === 0" class="empty-state">
-      <Gamepad2 :size="48" class="text-dim" />
-      <h3>Nenhuma atividade por aqui ainda</h3>
-      <p>As conquistas e zeramentos dos amigos da Capihouse aparecerão aqui!</p>
-    </div>
-
-    <div v-else class="activities-list fade-in">
-      <article
-        v-for="act in filteredActivities"
-        :key="act.id"
-        class="activity-card"
-        :class="{
-          'card-mastered': act.metadata?.status === 'mastered',
-          'card-completed': act.metadata?.status === 'completed'
-        }"
-      >
-        <!-- Header do Morador -->
-        <div class="activity-top">
-          <div class="user-block" @click="router.push(`/user/${act.user.id}`)">
+    <main class="container page-body">
+      <!-- Amigos da Casa (estilo CapyShowTime) -->
+      <section v-if="houseUsers.length > 0" class="friends-section fade-in">
+        <h2 class="section-heading mono">Amigos da Casa</h2>
+        <div class="friends-scroll">
+          <div
+            v-for="u in houseUsers"
+            :key="u.id"
+            class="friend-chip"
+            @click="router.push(`/user/${u.id}`)"
+          >
             <img
-              :src="act.user.avatar_url || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + act.user.username"
-              class="user-avatar"
+              :src="u.avatar_url || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + u.username"
+              :alt="u.name"
+              class="friend-avatar"
             />
-            <div class="user-meta">
-              <span class="user-name">{{ act.user.name }}</span>
-              <span class="time-ago">{{ formatTime(act.created_at) }}</span>
+            <span class="friend-name">{{ u.name.split(' ')[0] }}</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Feed Content -->
+      <div v-if="isLoading && activities.length === 0" class="loading-state">
+        <div class="spinner"></div>
+        <p>Carregando atividades...</p>
+      </div>
+
+      <div v-else-if="filteredActivities.length === 0" class="empty-state fade-in">
+        <Users :size="48" class="empty-icon" />
+        <h3 class="empty-title">Nenhuma atividade recente</h3>
+        <p class="empty-desc">As conquistas, zeramentos e análises dos amigos da Capihouse aparecerão aqui!</p>
+      </div>
+
+      <div v-else class="activities-list fade-in">
+        <h2 class="section-heading mono">Destaques da Casa</h2>
+        <article
+          v-for="act in filteredActivities"
+          :key="act.id"
+          class="activity-card"
+          :class="{
+            'card-mastered': act.metadata?.status === 'mastered',
+            'card-completed': act.metadata?.status === 'completed'
+          }"
+        >
+          <div class="activity-top">
+            <div class="user-block" @click="router.push(`/user/${act.user.id}`)">
+              <img
+                :src="act.user.avatar_url || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + act.user.username"
+                class="user-avatar"
+              />
+              <div class="user-meta">
+                <span class="user-name">{{ act.user.name }}</span>
+                <span class="time-ago">{{ formatTime(act.created_at) }}</span>
+              </div>
+            </div>
+
+            <div v-if="act.metadata?.rating" class="badge-rating mono">
+              <Star :size="12" fill="currentColor" />
+              <span>{{ act.metadata.rating.toFixed(1) }}</span>
+            </div>
+            <div v-else-if="act.metadata?.status === 'mastered'" class="badge-mastered mono">
+              <Trophy :size="12" />
+              <span>Platina</span>
             </div>
           </div>
 
-          <div v-if="act.metadata?.rating" class="rating-badge mono">
-            <Star :size="12" fill="currentColor" />
-            <span>{{ act.metadata.rating.toFixed(1) }}</span>
-          </div>
-        </div>
-
-        <!-- Conteúdo / Jogo -->
-        <div class="activity-content">
-          <div class="activity-headline">
+          <div class="activity-content">
             <h3 class="headline-text">{{ act.title }}</h3>
-          </div>
 
-          <!-- Review Text (se houver) -->
-          <div v-if="act.content" class="review-quote">
-            <p>"{{ act.content }}"</p>
-          </div>
+            <div v-if="act.content" class="review-quote">
+              <p>"{{ act.content }}"</p>
+            </div>
 
-          <!-- Game Card Preview -->
-          <div class="game-preview" @click="router.push(`/game/${act.game.id}`)">
-            <img
-              :src="act.game.cover_url || act.metadata?.cover_url || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=400&q=80'"
-              :alt="act.game.title"
-              class="game-thumb"
-            />
-            <div class="game-meta">
-              <span class="game-title">{{ act.game.title }}</span>
-              <div class="tags-row">
-                <span v-if="act.metadata?.platform" class="tag platform">{{ act.metadata.platform }}</span>
-                <span v-if="act.metadata?.hours_played" class="tag hours mono">
-                  <Clock :size="11" />
-                  {{ act.metadata.hours_played }}h
-                </span>
-                <span v-if="act.metadata?.gamerscore" class="tag gamerscore mono">
-                  +{{ act.metadata.gamerscore }}G
-                </span>
+            <div class="game-preview" @click="router.push(`/game/${act.game.id}`)">
+              <img
+                :src="act.game.cover_url || act.metadata?.cover_url || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=400&q=80'"
+                :alt="act.game.title"
+                class="game-thumb"
+              />
+              <div class="game-meta">
+                <span class="game-title">{{ act.game.title }}</span>
+                <div class="tags-row">
+                  <span v-if="act.metadata?.platform" class="badge-tag">{{ act.metadata.platform }}</span>
+                  <span v-if="act.metadata?.hours_played" class="tag hours mono">
+                    <Clock :size="11" />
+                    {{ act.metadata.hours_played }}h
+                  </span>
+                  <span v-if="act.metadata?.gamerscore" class="tag gamerscore mono">
+                    +{{ act.metadata.gamerscore }}G
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </article>
-    </div>
+        </article>
+      </div>
+    </main>
   </div>
 </template>
 
 <style scoped>
-.community-view {
-  padding-top: 16px;
-  padding-bottom: 24px;
+.community-page {
+  padding-bottom: 90px;
 }
 
 .page-header {
+  padding: calc(var(--safe-top) + 16px) 0 12px;
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.header-top {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.title-with-icon {
-  display: flex;
   align-items: center;
-  gap: 8px;
+  margin-bottom: 14px;
 }
 
-.page-title {
+.header-title {
   font-size: 1.35rem;
-  font-weight: 800;
-  color: var(--text-main);
+  font-weight: 700;
 }
 
-.subtitle {
-  font-size: 0.8rem;
+.header-subtitle {
+  font-size: 0.84rem;
   color: var(--text-muted);
 }
 
-.text-flame {
-  color: #f97316;
-}
-
-.icon-btn {
-  padding: 8px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface);
-  border: 1px solid var(--color-border);
-  color: var(--text-muted);
+.refresh-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--text-muted);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.refresh-btn:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.refresh-btn.spinning svg {
+  animation: spin 0.8s linear infinite;
+  color: var(--color-accent);
 }
 
 .filters-bar {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding-bottom: 12px;
-  margin-bottom: 18px;
+  padding-bottom: 4px;
   scrollbar-width: none;
 }
 
@@ -254,44 +300,104 @@ onMounted(() => {
 }
 
 .filter-pill {
-  padding: 6px 14px;
+  padding: 8px 16px;
   border-radius: var(--radius-full);
-  background: var(--bg-surface);
+  background: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
   color: var(--text-muted);
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.82rem;
+  font-weight: 500;
   white-space: nowrap;
   transition: all 0.2s ease;
 }
 
 .filter-pill:hover {
-  background: var(--bg-surface-hover);
   color: var(--text-main);
 }
 
 .filter-pill.active {
-  background: var(--color-primary);
-  border-color: #c084fc;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.4);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #0c0a14;
+  font-weight: 700;
+}
+
+.page-body {
+  padding-top: 20px;
+}
+
+.friends-section {
+  margin-bottom: 24px;
+}
+
+.section-heading {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+}
+
+.friends-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: none;
+}
+
+.friends-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.friend-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 6px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.friend-chip:hover {
+  border-color: var(--color-accent);
+  background-color: var(--bg-surface-elevated);
+  transform: translateY(-2px);
+}
+
+.friend-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.friend-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-main);
 }
 
 .activities-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .activity-card {
   background: var(--bg-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 16px;
+  border-radius: var(--radius-lg);
+  padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  transition: border-color 0.2s ease, transform 0.2s ease;
+  transition: border-color 0.2s ease;
 }
 
 .activity-card:hover {
@@ -321,8 +427,8 @@ onMounted(() => {
 }
 
 .user-avatar {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   object-fit: cover;
   border: 1px solid var(--color-border);
@@ -334,31 +440,18 @@ onMounted(() => {
 }
 
 .user-name {
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--text-main);
 }
 
 .time-ago {
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   color: var(--text-muted);
 }
 
-.rating-badge {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  background: rgba(251, 191, 36, 0.15);
-  border: 1px solid rgba(251, 191, 36, 0.4);
-  color: #fbbf24;
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.activity-headline {
-  font-size: 0.95rem;
+.headline-text {
+  font-size: 0.94rem;
   font-weight: 600;
   color: var(--text-main);
 }
@@ -366,12 +459,12 @@ onMounted(() => {
 .review-quote {
   background: var(--bg-surface-elevated);
   border-left: 3px solid var(--color-accent);
-  padding: 10px 14px;
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 12px 16px;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
   font-size: 0.88rem;
   color: #e2d9f3;
   font-style: italic;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .game-preview {
@@ -380,33 +473,34 @@ onMounted(() => {
   gap: 12px;
   background: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
   cursor: pointer;
-  transition: background 0.2s ease;
-  margin-top: 4px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  margin-top: 8px;
 }
 
 .game-preview:hover {
   background: var(--bg-surface-hover);
+  border-color: var(--color-accent);
 }
 
 .game-thumb {
-  width: 40px;
-  height: 56px;
-  border-radius: 6px;
+  width: 44px;
+  height: 62px;
+  border-radius: var(--radius-sm);
   object-fit: cover;
 }
 
 .game-meta {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   overflow: hidden;
 }
 
 .game-title {
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--text-main);
   white-space: nowrap;
@@ -417,25 +511,22 @@ onMounted(() => {
 .tags-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .tag {
-  font-size: 0.68rem;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.tag.platform {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-muted);
+  font-size: 0.72rem;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
 }
 
 .tag.hours {
   color: var(--color-accent);
-  display: flex;
+  background: var(--color-accent-dim);
+  display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
+  font-weight: 600;
 }
 
 .tag.gamerscore {
@@ -446,26 +537,28 @@ onMounted(() => {
 
 .loading-state,
 .empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  gap: 12px;
-  color: var(--text-muted);
   text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
 }
 
-.spin {
-  animation: spin 1s linear infinite;
+.empty-icon {
+  color: var(--color-accent);
+  margin-bottom: 12px;
+}
+
+.empty-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--text-main);
+}
+
+.empty-desc {
+  font-size: 0.85rem;
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
-}
-
-.text-accent {
-  color: var(--color-accent);
 }
 </style>

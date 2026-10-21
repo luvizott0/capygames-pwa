@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { CapyUserGame } from '@/api/capygames'
-import { Trophy, Star, Clock } from 'lucide-vue-next'
+import { Trophy, Star, Clock, Gamepad2 } from 'lucide-vue-next'
 
 const props = defineProps<{
   userGame: CapyUserGame
+  compact?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -16,19 +17,19 @@ const game = computed(() => props.userGame.game)
 const statusBadge = computed(() => {
   switch (props.userGame.status) {
     case 'mastered':
-      return { label: 'Platinado', class: 'status-mastered', icon: Trophy }
+      return { label: 'Platinado', shortLabel: '100%', class: 'status-mastered', icon: Trophy }
     case 'completed':
-      return { label: 'Zerado', class: 'status-completed' }
+      return { label: 'Zerado', shortLabel: 'Zerado', class: 'status-completed' }
     case 'playing':
-      return { label: 'Jogando', class: 'status-playing' }
+      return { label: 'Jogando', shortLabel: 'Jogando', class: 'status-playing' }
     case 'plan_to_play':
-      return { label: 'A Jogar', class: 'status-backlog' }
+      return { label: 'Na Fila', shortLabel: 'Fila', class: 'status-backlog' }
     case 'dropped':
-      return { label: 'Abandonado', class: 'status-dropped' }
+      return { label: 'Abandonado', shortLabel: 'Drop', class: 'status-dropped' }
     case 'on_hold':
-      return { label: 'Em Pausa', class: 'status-onhold' }
+      return { label: 'Em Pausa', shortLabel: 'Pausa', class: 'status-onhold' }
     default:
-      return { label: props.userGame.status, class: 'status-backlog' }
+      return { label: props.userGame.status, shortLabel: props.userGame.status, class: 'status-backlog' }
   }
 })
 
@@ -36,25 +37,29 @@ const defaultCover = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?
 </script>
 
 <template>
-  <div class="game-card" @click="emit('click', userGame)">
-    <div class="cover-wrapper">
+  <div class="game-card" :class="{ compact }" @click="emit('click', userGame)">
+    <div class="poster-container">
       <img
-        :src="game.cover_url || defaultCover"
+        v-if="game.cover_url"
+        :src="game.cover_url"
         :alt="game.title"
-        class="cover-image"
+        class="poster-img"
         loading="lazy"
         @error="($event.target as HTMLImageElement).src = defaultCover"
       />
-
-      <!-- Status badge overlay -->
-      <div class="badge-overlay" :class="statusBadge.class">
-        <component :is="statusBadge.icon" v-if="statusBadge.icon" :size="12" class="badge-icon" />
-        <span>{{ statusBadge.label }}</span>
+      <div v-else class="poster-placeholder">
+        <Gamepad2 :size="compact ? 22 : 28" />
       </div>
 
-      <!-- Rating badge overlay (if exists) -->
-      <div v-if="userGame.rating" class="rating-overlay mono">
-        <Star :size="11" class="star-icon" fill="currentColor" />
+      <!-- Status badge overlay (estilo CapyShowTime) -->
+      <div class="status-badge" :class="statusBadge.class">
+        <component :is="statusBadge.icon" v-if="statusBadge.icon" :size="compact ? 10 : 11" />
+        <span>{{ compact ? statusBadge.shortLabel : statusBadge.label }}</span>
+      </div>
+
+      <!-- Rating badge overlay -->
+      <div v-if="userGame.rating" class="rating-badge mono">
+        <Star :size="compact ? 9 : 11" fill="currentColor" />
         <span>{{ userGame.rating.toFixed(1) }}</span>
       </div>
 
@@ -62,13 +67,12 @@ const defaultCover = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?
       <div v-if="userGame.status === 'mastered'" class="mastered-glow" />
     </div>
 
-    <div class="info">
-      <h3 class="title" :title="game.title">{{ game.title }}</h3>
-      
+    <div class="game-info">
+      <h3 class="game-title" :title="game.title">{{ game.title }}</h3>
       <div class="meta-row">
-        <span v-if="userGame.platform" class="platform-tag">{{ userGame.platform }}</span>
-        <span v-if="userGame.hours_played > 0" class="hours-tag mono">
-          <Clock :size="11" />
+        <span v-if="userGame.platform" class="game-platform">{{ userGame.platform }}</span>
+        <span v-if="userGame.hours_played > 0" class="game-hours mono">
+          <Clock v-if="!compact" :size="11" />
           {{ userGame.hours_played }}h
         </span>
       </div>
@@ -78,94 +82,118 @@ const defaultCover = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?
 
 <style scoped>
 .game-card {
+  cursor: pointer;
+  transition: transform 0.2s ease;
   display: flex;
   flex-direction: column;
-  cursor: pointer;
-  border-radius: var(--radius-md);
-  background: var(--bg-surface);
-  border: 1px solid var(--color-border);
-  overflow: hidden;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  min-width: 0;
 }
 
 .game-card:hover {
   transform: translateY(-4px);
-  border-color: var(--color-accent);
-  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.2);
 }
 
 .game-card:active {
   transform: scale(0.97);
 }
 
-.cover-wrapper {
+.poster-container {
   position: relative;
   width: 100%;
   aspect-ratio: 2 / 3;
-  background: #110e1c;
+  border-radius: var(--radius-md);
   overflow: hidden;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.cover-image {
+.game-card.compact .poster-container {
+  border-radius: var(--radius-sm);
+}
+
+.game-card:hover .poster-container {
+  border-color: var(--color-accent);
+  box-shadow: 0 8px 22px rgba(124, 58, 237, 0.22);
+}
+
+.poster-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   transition: transform 0.3s ease;
 }
 
-.game-card:hover .cover-image {
-  transform: scale(1.05);
+.game-card:hover .poster-img {
+  transform: scale(1.04);
 }
 
-.badge-overlay {
+.poster-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+
+.status-badge {
   position: absolute;
   top: 8px;
   left: 8px;
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: var(--radius-sm);
-  backdrop-filter: blur(8px);
+  background: rgba(12, 10, 20, 0.82);
+  color: var(--text-main);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  backdrop-filter: blur(6px);
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.game-card.compact .status-badge {
+  top: 5px;
+  left: 5px;
+  font-size: 0.6rem;
+  padding: 2px 6px;
 }
 
 .status-mastered {
-  background: rgba(245, 158, 11, 0.9);
-  color: #fff;
-  border: 1px solid #fbbf24;
+  background: rgba(245, 158, 11, 0.92);
+  color: #12100e;
+  border-color: #fbbf24;
+  font-weight: 700;
 }
 
 .status-completed {
-  background: rgba(16, 185, 129, 0.9);
+  background: rgba(16, 185, 129, 0.88);
   color: #fff;
 }
 
 .status-playing {
-  background: rgba(59, 130, 246, 0.9);
+  background: rgba(59, 130, 246, 0.88);
   color: #fff;
 }
 
 .status-backlog {
-  background: rgba(139, 92, 246, 0.9);
-  color: #fff;
+  background: rgba(12, 10, 20, 0.82);
+  color: var(--text-main);
 }
 
 .status-dropped {
-  background: rgba(239, 68, 68, 0.9);
+  background: rgba(239, 68, 68, 0.88);
   color: #fff;
 }
 
 .status-onhold {
-  background: rgba(107, 114, 128, 0.9);
+  background: rgba(107, 114, 128, 0.88);
   color: #fff;
 }
 
-.rating-overlay {
+.rating-badge {
   position: absolute;
   bottom: 8px;
   right: 8px;
@@ -173,38 +201,53 @@ const defaultCover = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?
   backdrop-filter: blur(6px);
   color: #fbbf24;
   border: 1px solid rgba(251, 191, 36, 0.4);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  display: flex;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
   align-items: center;
   gap: 3px;
+}
+
+.game-card.compact .rating-badge {
+  bottom: 5px;
+  right: 5px;
+  font-size: 0.62rem;
+  padding: 1px 5px;
 }
 
 .mastered-glow {
   position: absolute;
   inset: 0;
   border: 2px solid #f59e0b;
+  border-radius: inherit;
   pointer-events: none;
   box-shadow: inset 0 0 12px rgba(245, 158, 11, 0.35);
 }
 
-.info {
-  padding: 10px;
+.game-info {
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
 }
 
-.title {
-  font-size: 0.88rem;
+.game-card.compact .game-info {
+  margin-top: 5px;
+}
+
+.game-title {
+  font-size: 0.86rem;
   font-weight: 600;
   color: var(--text-main);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.3;
+}
+
+.game-card.compact .game-title {
+  font-size: 0.74rem;
 }
 
 .meta-row {
@@ -214,23 +257,29 @@ const defaultCover = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?
   gap: 6px;
 }
 
-.platform-tag {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  background: var(--bg-surface-elevated);
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
+.game-platform {
+  font-size: 0.74rem;
+  color: var(--text-dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.hours-tag {
+.game-card.compact .game-platform {
+  font-size: 0.65rem;
+}
+
+.game-hours {
   font-size: 0.72rem;
   color: var(--color-accent);
   display: inline-flex;
   align-items: center;
   gap: 3px;
   font-weight: 600;
+  flex-shrink: 0;
+}
+
+.game-card.compact .game-hours {
+  font-size: 0.64rem;
 }
 </style>
