@@ -1,7 +1,5 @@
 <template>
-  <component
-    :is="targetRoute ? 'router-link' : 'div'"
-    :to="targetRoute"
+  <div
     class="game-card"
     :class="{ 'is-compact': compact }"
     :title="actualGame?.title"
@@ -24,7 +22,7 @@
         </span>
       </div>
 
-      <!-- Rating Badge no topo direito (estilo CapyShowTime / CapyFlix) -->
+      <!-- Rating Badge no topo direito -->
       <div v-if="displayRating" class="rating-badge mono" :class="{ 'rating-mini': compact }">
         ★ {{ Number(displayRating).toFixed(1) }}
       </div>
@@ -33,23 +31,18 @@
       <div v-if="statusInfo?.isMastered" class="mastered-glow" />
     </div>
 
-    <!-- Informações de título e plataforma -->
-    <div v-if="!compact" class="game-info">
+    <!-- Apenas Título do Jogo (sem poluição de labels de plataforma) -->
+    <div v-if="!compact && !hideTitle" class="game-info">
       <h3 class="game-title">{{ actualGame?.title }}</h3>
-      <div class="game-meta">
-        <span v-if="displayPlatform" class="meta-item">{{ displayPlatform }}</span>
-        <span v-if="displayPlatform && (displayHours || actualGame?.developer)" class="meta-dot">•</span>
-        <span v-if="displayHours" class="meta-item mono">{{ displayHours }}</span>
-        <span v-else-if="actualGame?.developer" class="meta-item">{{ actualGame?.developer }}</span>
-      </div>
     </div>
-  </component>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { Trophy } from 'lucide-vue-next'
-import type { CapyGame, CapyUserGame, GameSearchResult } from '@/api/capygames'
+import { capyGamesApi, type CapyGame, type CapyUserGame, type GameSearchResult } from '@/api/capygames'
 import { useGamesStore } from '@/stores/games'
 
 const props = withDefaults(
@@ -57,9 +50,11 @@ const props = withDefaults(
     userGame?: CapyUserGame
     game?: CapyGame | GameSearchResult
     compact?: boolean
+    hideTitle?: boolean
   }>(),
   {
-    compact: false
+    compact: false,
+    hideTitle: false
   }
 )
 
@@ -67,6 +62,7 @@ const emit = defineEmits<{
   (e: 'click', game: CapyGame | GameSearchResult | CapyUserGame): void
 }>()
 
+const router = useRouter()
 const gamesStore = useGamesStore()
 const fallbackActive = ref(false)
 
@@ -84,14 +80,6 @@ const matchedUserGame = computed<CapyUserGame | null>(() => {
   return gamesStore.myList.find(ug => ug.game_id === actualGame.value?.id || ug.game?.id === actualGame.value?.id) || null
 })
 
-const targetRoute = computed(() => {
-  const gId = actualGame.value?.id || props.userGame?.game_id
-  if (gId) {
-    return `/game/${gId}`
-  }
-  return undefined
-})
-
 const defaultCover = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=400&q=80'
 
 const optimizedCover = computed(() => {
@@ -105,8 +93,38 @@ function handleImageError() {
   fallbackActive.value = true
 }
 
-function handleClick() {
+async function handleClick() {
   emit('click', props.userGame || actualGame.value!)
+
+  // Se já tem id local, navega direto para a tela de detalhes
+  const gId = actualGame.value?.id || props.userGame?.game_id
+  if (gId) {
+    router.push(`/game/${gId}`)
+    return
+  }
+
+  // Se for um jogo recém-pesquisado sem id na base, garante sua criação e redireciona
+  if (actualGame.value?.title) {
+    try {
+      const res = await capyGamesApi.ensureGame({
+        title: actualGame.value.title,
+        external_id: actualGame.value.external_id,
+        external_source: actualGame.value.external_source,
+        cover_url: actualGame.value.cover_url,
+        banner_url: actualGame.value.banner_url,
+        summary: actualGame.value.summary,
+        developer: actualGame.value.developer,
+        publisher: actualGame.value.publisher,
+        platforms: actualGame.value.platforms,
+        genres: actualGame.value.genres,
+      })
+      if (res.data?.data?.id) {
+        router.push(`/game/${res.data.data.id}`)
+      }
+    } catch (err) {
+      console.error('Erro ao abrir detalhes do jogo:', err)
+    }
+  }
 }
 
 const statusInfo = computed(() => {
@@ -136,23 +154,6 @@ const displayRating = computed(() => {
     return matchedUserGame.value.rating
   }
   return null
-})
-
-const displayPlatform = computed(() => {
-  if (matchedUserGame.value?.platform) {
-    return matchedUserGame.value.platform
-  }
-  if (actualGame.value?.platforms && actualGame.value.platforms.length > 0) {
-    return actualGame.value.platforms[0]
-  }
-  return ''
-})
-
-const displayHours = computed(() => {
-  if (matchedUserGame.value?.hours_played && matchedUserGame.value.hours_played > 0) {
-    return `${matchedUserGame.value.hours_played}h`
-  }
-  return ''
 })
 </script>
 
@@ -296,24 +297,5 @@ const displayHours = computed(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.3;
-}
-
-.game-meta {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
-
-.meta-dot {
-  color: var(--text-dim);
-}
-
-.meta-item {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 </style>

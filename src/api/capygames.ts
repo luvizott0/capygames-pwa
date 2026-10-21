@@ -13,6 +13,15 @@ export interface CapyGame {
   publisher?: string
   platforms?: string[]
   genres?: string[]
+  release_date?: string
+  raw_data?: {
+    screenshots?: Array<{ id?: number; thumbnail?: string; full?: string }>
+    categories?: string[]
+    achievements_count?: number
+    release_date?: string
+    metacritic?: number
+    website?: string
+  }
 }
 
 export type GameStatus = 'plan_to_play' | 'playing' | 'completed' | 'mastered' | 'dropped' | 'on_hold'
@@ -124,6 +133,10 @@ export const capyGamesApi = {
 
   getGame(id: number) {
     return apiClient.get(`/capygames/games/${id}`)
+  },
+
+  ensureGame(gameData: Partial<GameSearchResult>) {
+    return apiClient.post<{ data: CapyGame }>('/capygames/games/ensure', gameData)
   },
 
   getMyLibrary(status?: string, platform?: string) {

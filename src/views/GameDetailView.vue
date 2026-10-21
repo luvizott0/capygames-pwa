@@ -16,7 +16,7 @@
           @click="openImageViewer((game.banner_url || game.cover_url)!)"
         />
         <div class="backdrop-overlay"></div>
-        <button class="back-btn" @click="goBack">
+        <button class="back-btn" title="Voltar" @click="goBack">
           <ArrowLeft :size="20" />
         </button>
       </div>
@@ -41,13 +41,13 @@
             <h1 class="series-title">{{ game.title }}</h1>
             <div class="meta-row">
               <span v-if="game.developer" class="meta-item">{{ game.developer }}</span>
-              <span v-if="game.developer" class="meta-bullet">•</span>
-              <span class="meta-item mono">{{ (game.platforms || ['PC']).join(', ') }}</span>
+              <span v-if="game.developer && releaseDateText" class="meta-bullet">•</span>
+              <span v-if="releaseDateText" class="meta-item mono">{{ releaseDateText }}</span>
             </div>
 
             <!-- Seletor de Status na Lista -->
             <div class="status-selector">
-              <select :value="myStatus?.status || 'none'" @change="onStatusChange" class="status-select">
+              <select :value="myStatus?.status || 'none'" class="status-select" @change="onStatusChange">
                 <option value="none">+ Adicionar à Lista</option>
                 <option value="plan_to_play">📌 Quero Jogar</option>
                 <option value="playing">▶ Jogando</option>
@@ -99,15 +99,114 @@
           </div>
         </div>
 
+        <!-- Meu Progresso & Conquistas (Se estiver na biblioteca ou tiver conquistas) -->
+        <div class="detail-section progress-detail-box">
+          <div class="section-header-row">
+            <h3 class="section-title">Meu Progresso</h3>
+            <span v-if="myStatus?.status" class="season-avg-badge mono">
+              {{ getStatusLabel(myStatus.status) }}
+            </span>
+          </div>
+
+          <div class="progress-stats-grid">
+            <!-- Barra de Progresso de Conquistas -->
+            <div class="progress-col">
+              <div class="progress-header-labels">
+                <span class="prog-label">
+                  <Trophy :size="15" class="trophy-gold" />
+                  <span>Conquistas:</span>
+                </span>
+                <span class="prog-numbers mono">
+                  {{ achievementsEarned }}/{{ totalAchievementsCount }}
+                  <template v-if="totalAchievementsCount > 0">
+                    ({{ achievementPercent }}%)
+                  </template>
+                </span>
+              </div>
+              <div class="detail-progress-bar">
+                <div
+                  class="detail-progress-fill"
+                  :style="{ width: `${achievementPercent}%` }"
+                ></div>
+              </div>
+            </div>
+
+            <!-- Botão de Editar Registro -->
+            <div class="progress-action-col">
+              <button
+                type="button"
+                class="season-watch-all-btn"
+                @click="isModalOpen = true"
+              >
+                <Edit3 :size="15" stroke-width="2.5" />
+                <span>{{ myStatus ? 'Editar Horas / Nota / Review' : 'Adicionar e Avaliar Jogo' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Sinopse -->
-        <div v-if="game.summary" class="overview-section">
+        <div v-if="game.summary" class="detail-section overview-section">
           <h3 class="section-title">Sinopse</h3>
           <p class="overview-text">{{ game.summary }}</p>
         </div>
 
-        <!-- Amigos que jogam -->
-        <div v-if="housemates.length > 0" class="housemates-section">
-          <h3 class="section-title">Amigos que acompanham</h3>
+        <!-- Plataformas Disponíveis para Jogar -->
+        <div v-if="availablePlatforms.length > 0" class="detail-section platforms-section">
+          <h3 class="section-title">Onde Jogar</h3>
+          <div class="platforms-chips-row">
+            <div
+              v-for="plat in availablePlatforms"
+              :key="plat"
+              class="platform-chip"
+            >
+              <PlatformIcon :platform="plat" :size="16" />
+              <span>{{ plat }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recursos do Jogo (Categories / Features) -->
+        <div v-if="gameFeatures.length > 0" class="detail-section features-section">
+          <h3 class="section-title">Recursos do Jogo</h3>
+          <div class="features-chips-row">
+            <span
+              v-for="feat in gameFeatures"
+              :key="feat"
+              class="feature-chip"
+            >
+              <Check :size="13" class="feat-check" />
+              <span>{{ feat }}</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Galeria de Prints / Screenshots -->
+        <div v-if="gameScreenshots.length > 0" class="detail-section screenshots-section">
+          <h3 class="section-title">Capturas de Tela (Prints)</h3>
+          <div class="screenshots-track">
+            <div
+              v-for="(shot, idx) in gameScreenshots"
+              :key="shot.id || idx"
+              class="screenshot-thumb-wrapper"
+              @click="openImageViewer(shot.full || shot.thumbnail || '')"
+            >
+              <img
+                :src="shot.thumbnail || shot.full"
+                :alt="`Print de ${game.title}`"
+                class="screenshot-img"
+                loading="lazy"
+              />
+              <div class="screenshot-hover-overlay">
+                <Maximize2 :size="18" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Amigos que jogam (Label ajustada conforme solicitado) -->
+        <div v-if="housemates.length > 0" class="detail-section housemates-section">
+          <h3 class="section-title">Amigos que jogam</h3>
           <div class="housemates-avatars">
             <div
               v-for="hm in housemates"
@@ -127,46 +226,14 @@
                 {{ hm.user.name.charAt(0) }}
               </div>
               <span class="hm-name">{{ hm.user.name.split(' ')[0] }}</span>
+              <span v-if="hm.rating" class="hm-rating mono">★{{ Number(hm.rating).toFixed(1) }}</span>
             </div>
           </div>
         </div>
 
-        <!-- Seção de Progresso, Conquistas e Análises -->
-        <div class="seasons-section">
-          <div class="seasons-tabs-header">
-            <h3 class="section-title">Progresso & Avaliações</h3>
-            <span v-if="myStatus?.status" class="season-avg-badge mono">
-              {{ getStatusLabel(myStatus.status) }}
-            </span>
-          </div>
-
-          <!-- Barra de Ações do Jogo -->
-          <div class="season-action-bar">
-            <div class="season-info-count">
-              <span class="mono count-text">
-                {{ myStatus ? `${myStatus.hours_played || 0}h em ${myStatus.platform || 'PC'}` : 'Ainda não está na sua lista' }}
-              </span>
-              <span
-                v-if="myStatus && (myStatus.status === 'completed' || myStatus.status === 'mastered')"
-                class="season-completed-badge mono"
-              >
-                <Check :size="12" stroke-width="3" />
-                {{ myStatus.status === 'mastered' ? 'Platinado' : 'Zerado' }}
-              </span>
-            </div>
-
-            <button
-              type="button"
-              class="season-watch-all-btn"
-              :class="{ 'all-watched': myStatus && (myStatus.status === 'completed' || myStatus.status === 'mastered') }"
-              @click="isModalOpen = true"
-            >
-              <Edit3 :size="15" stroke-width="2.5" />
-              <span>{{ myStatus ? 'Editar Horas / Nota / Review' : 'Adicionar e Avaliar Jogo' }}</span>
-            </button>
-          </div>
-
-          <!-- Lista de Análises dos Moradores -->
+        <!-- Avaliações dos Moradores -->
+        <div v-if="myStatus?.review || housematesWithReviews.length > 0" class="detail-section reviews-section">
+          <h3 class="section-title">Avaliações & Reviews</h3>
           <div class="episodes-list">
             <div v-if="myStatus?.review" class="review-card highlight">
               <div class="review-card-header">
@@ -221,7 +288,7 @@
       @removed="handleRemoved"
     />
 
-    <!-- Image Viewer Modal -->
+    <!-- Image Viewer Modal para Prints e Capas em Tela Cheia -->
     <ImageViewerModal
       :is-open="isImageViewerOpen"
       :image-url="currentImageUrl"
@@ -233,11 +300,23 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Gamepad2, Star, Users, AlertCircle, RotateCw, Check, Edit3 } from 'lucide-vue-next'
+import {
+  ArrowLeft,
+  Gamepad2,
+  Star,
+  Users,
+  AlertCircle,
+  RotateCw,
+  Check,
+  Edit3,
+  Trophy,
+  Maximize2
+} from 'lucide-vue-next'
 import { capyGamesApi, type CapyGame, type CapyUserGame, type GameStatus } from '@/api/capygames'
 import { useGamesStore } from '@/stores/games'
 import GameStatusModal from '@/components/GameStatusModal.vue'
 import ImageViewerModal from '@/components/ImageViewerModal.vue'
+import PlatformIcon from '@/components/PlatformIcon.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -258,17 +337,63 @@ const isImageViewerOpen = ref(false)
 const currentImageUrl = ref('')
 
 const housematesWithReviews = computed(() => {
-  return housemates.value.filter(hm => hm.review)
+  return housemates.value.filter(hm => hm.review && hm.user.id !== myStatus.value?.user_id)
 })
 
-function openImageViewer(url: string) {
-  currentImageUrl.value = url
-  isImageViewerOpen.value = true
-}
+const releaseDateText = computed(() => {
+  return game.value?.raw_data?.release_date || game.value?.release_date || ''
+})
 
-function closeImageViewer() {
-  isImageViewerOpen.value = false
-  currentImageUrl.value = ''
+const availablePlatforms = computed(() => {
+  return game.value?.platforms && game.value.platforms.length > 0
+    ? game.value.platforms
+    : ['PC']
+})
+
+const gameFeatures = computed(() => {
+  return game.value?.raw_data?.categories || []
+})
+
+const gameScreenshots = computed(() => {
+  const shots = game.value?.raw_data?.screenshots || []
+  if (shots.length > 0) return shots
+  if (game.value?.banner_url) {
+    return [{ id: 1, thumbnail: game.value.banner_url, full: game.value.banner_url }]
+  }
+  return []
+})
+
+const achievementsEarned = computed(() => {
+  return myStatus.value?.achievements_earned || 0
+})
+
+const totalAchievementsCount = computed(() => {
+  return myStatus.value?.achievements_total || game.value?.raw_data?.achievements_count || 0
+})
+
+const achievementPercent = computed(() => {
+  if (totalAchievementsCount.value <= 0) return 0
+  return Math.min(100, Math.round((achievementsEarned.value / totalAchievementsCount.value) * 100))
+})
+
+async function fetchGameDetails() {
+  loading.value = true
+  errorMessage.value = null
+
+  try {
+    const res = await capyGamesApi.getGame(gameId)
+    const data = res.data
+    game.value = data.game
+    myStatus.value = data.my_status
+    communityRating.value = data.community_rating
+    totalRatings.value = data.total_ratings
+    housemates.value = data.housemates || []
+  } catch (err: any) {
+    console.error('Erro ao buscar detalhes do jogo:', err)
+    errorMessage.value = err.response?.data?.message || 'Falha ao carregar detalhes do jogo.'
+  } finally {
+    loading.value = false
+  }
 }
 
 function goBack() {
@@ -283,83 +408,66 @@ function goToProfile(userId: number) {
   router.push(`/profile/${userId}`)
 }
 
-function getStatusLabel(status: string): string {
-  switch (status) {
-    case 'plan_to_play': return 'Quero Jogar'
-    case 'playing': return 'Jogando'
-    case 'completed': return 'Zerado'
-    case 'mastered': return 'Platinado 100%'
-    case 'on_hold': return 'Em Pausa'
-    case 'dropped': return 'Abandonado'
-    default: return status
-  }
+function openImageViewer(url: string) {
+  if (!url) return
+  currentImageUrl.value = url
+  isImageViewerOpen.value = true
 }
 
-async function fetchGameDetails() {
-  loading.value = true
-  errorMessage.value = null
-  try {
-    const res = await capyGamesApi.getGame(gameId)
-    if (!res.data || !res.data.game) {
-      throw new Error('Jogo não encontrado')
-    }
-    game.value = res.data.game
-    myStatus.value = res.data.my_status || null
-    communityRating.value = res.data.community_rating || null
-    totalRatings.value = res.data.total_ratings || 0
-    housemates.value = res.data.housemates || []
-  } catch (err: any) {
-    console.error('Erro ao carregar jogo:', err)
-    errorMessage.value = err.response?.data?.message || err.message || 'Não foi possível carregar as informações deste jogo.'
-  } finally {
-    loading.value = false
-  }
+function closeImageViewer() {
+  isImageViewerOpen.value = false
+  currentImageUrl.value = ''
 }
 
 async function onStatusChange(e: Event) {
-  const target = e.target as HTMLSelectElement
-  const val = target.value
-  if (val === 'none') return
+  const val = (e.target as HTMLSelectElement).value
+  if (!game.value) return
 
-  if (val === 'remove' && myStatus.value) {
-    try {
+  if (val === 'remove') {
+    if (myStatus.value?.id) {
       await capyGamesApi.removeGame(myStatus.value.id)
       myStatus.value = null
-      gamesStore.invalidateAllCache()
-      await fetchGameDetails()
-    } catch (err) {
-      console.error('Erro ao remover jogo:', err)
+      await gamesStore.fetchMyList(true)
     }
     return
   }
 
-  try {
-    const res = await capyGamesApi.setStatus({
-      game_id: game.value?.id,
+  if (val !== 'none') {
+    await capyGamesApi.setStatus({
+      game_id: game.value.id,
       status: val as GameStatus,
-      platform: myStatus.value?.platform || game.value?.platforms?.[0] || 'PC',
+      platform: myStatus.value?.platform || 'PC',
       hours_played: myStatus.value?.hours_played || 0,
-      rating: myStatus.value?.rating ?? null,
-      review: myStatus.value?.review ?? null
+      rating: myStatus.value?.rating
     })
-    myStatus.value = res.data.user_game
-    gamesStore.invalidateAllCache()
     await fetchGameDetails()
-  } catch (err) {
-    console.error('Erro ao alterar status:', err)
+    await gamesStore.fetchMyList(true)
   }
 }
 
-function handleUpdated(ug: CapyUserGame) {
-  myStatus.value = ug
-  gamesStore.invalidateAllCache()
+function handleUpdated() {
+  isModalOpen.value = false
   fetchGameDetails()
+  gamesStore.fetchMyList(true)
 }
 
 function handleRemoved() {
+  isModalOpen.value = false
   myStatus.value = null
-  gamesStore.invalidateAllCache()
   fetchGameDetails()
+  gamesStore.fetchMyList(true)
+}
+
+function getStatusLabel(status: string) {
+  const map: Record<string, string> = {
+    plan_to_play: 'Quero Jogar',
+    playing: 'Jogando',
+    completed: 'Zerado',
+    mastered: 'Platinado (100%)',
+    on_hold: 'Em Pausa',
+    dropped: 'Abandonado'
+  }
+  return map[status] || status
 }
 
 onMounted(() => {
@@ -369,20 +477,32 @@ onMounted(() => {
 
 <style scoped>
 .series-detail-page {
-  padding-bottom: 90px;
+  padding-bottom: 60px;
+}
+
+.loading-state,
+.empty-state-detail {
+  min-height: 50vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 16px;
+  padding: 40px 16px;
+  color: var(--text-muted);
 }
 
 .backdrop-wrapper {
   position: relative;
   width: 100%;
-  height: calc(220px + var(--safe-top));
+  height: 280px;
   background-color: var(--bg-surface-elevated);
-  overflow: hidden;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 768px) {
   .backdrop-wrapper {
-    height: calc(320px + var(--safe-top));
+    height: 380px;
   }
 }
 
@@ -404,14 +524,23 @@ onMounted(() => {
   left: 16px;
   width: 38px;
   height: 38px;
-  border-radius: var(--radius-full);
-  background-color: rgba(0, 0, 0, 0.6);
+  border-radius: var(--radius-sm);
+  background-color: rgba(18, 16, 14, 0.7);
   backdrop-filter: blur(8px);
+  border: 1px solid var(--color-border);
   color: var(--text-main);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 5;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.back-btn:hover {
+  background-color: var(--color-accent);
+  color: #12100e;
+  border-color: var(--color-accent);
 }
 
 .main-content {
@@ -428,20 +557,19 @@ onMounted(() => {
 }
 
 .poster-box {
-  width: 110px;
-  height: 160px;
-  border-radius: var(--radius-md);
+  width: 120px;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-sm);
   overflow: hidden;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
   flex-shrink: 0;
-  border: 1px solid var(--color-border);
-  background-color: var(--bg-surface);
 }
 
 @media (min-width: 640px) {
   .poster-box {
-    width: 140px;
-    height: 200px;
+    width: 160px;
   }
 }
 
@@ -462,14 +590,23 @@ onMounted(() => {
 
 .titles-box {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .series-title {
   font-size: 1.4rem;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-main);
   line-height: 1.2;
-  margin-bottom: 6px;
+}
+
+@media (min-width: 640px) {
+  .series-title {
+    font-size: 1.8rem;
+  }
 }
 
 .meta-row {
@@ -478,38 +615,45 @@ onMounted(() => {
   gap: 6px;
   font-size: 0.8rem;
   color: var(--text-muted);
-  margin-bottom: 12px;
-  flex-wrap: wrap;
 }
 
 .meta-bullet {
   color: var(--text-dim);
 }
 
+.status-selector {
+  margin-top: 8px;
+}
+
 .status-select {
   background-color: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
-  color: var(--text-main);
+  color: var(--color-accent);
   padding: 8px 12px;
-  border-radius: var(--radius-md);
-  font-size: 0.85rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
   font-weight: 600;
-  outline: none;
   cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.status-select:focus {
+  border-color: var(--color-accent);
 }
 
 /* Dashboard de Notas */
 .ratings-dashboard {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 24px;
 }
 
 .rating-card {
   background-color: var(--bg-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   padding: 12px;
   text-align: center;
   display: flex;
@@ -535,6 +679,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   gap: 4px;
+  margin-bottom: 4px;
 }
 
 .star-accent {
@@ -546,23 +691,28 @@ onMounted(() => {
 }
 
 .rating-val {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: var(--text-main);
 }
 
 .rating-val-empty {
-  font-size: 1.2rem;
+  font-size: 1.25rem;
+  font-weight: 700;
   color: var(--text-dim);
 }
 
 .rating-subtext {
-  font-size: 0.68rem;
-  color: var(--text-dim);
-  margin-top: 2px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
 }
 
-.overview-section, .housemates-section {
+.clickable {
+  cursor: pointer;
+}
+
+/* Seções Gerais */
+.detail-section {
   margin-bottom: 24px;
 }
 
@@ -570,71 +720,29 @@ onMounted(() => {
   font-size: 1rem;
   font-weight: 700;
   color: var(--text-main);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  letter-spacing: 0.2px;
 }
 
 .overview-text {
   font-size: 0.88rem;
   color: var(--text-muted);
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
-.housemates-avatars {
-  display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  padding: 4px 0;
-}
-
-.housemate-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  transition: transform 0.15s ease;
-}
-
-.housemate-item:hover {
-  transform: translateY(-2px);
-}
-
-.hm-avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  object-fit: cover;
+/* Progresso e Conquistas */
+.progress-detail-box {
+  background-color: var(--bg-surface);
   border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
 }
 
-.hm-avatar-placeholder {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background-color: var(--color-primary);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.9rem;
-}
-
-.hm-name {
-  font-size: 0.7rem;
-  color: var(--text-dim);
-}
-
-/* Progresso & Análises */
-.seasons-section {
-  margin-top: 28px;
-}
-
-.seasons-tabs-header {
+.section-header-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .season-avg-badge {
@@ -646,36 +754,62 @@ onMounted(() => {
   border-radius: var(--radius-sm);
 }
 
-.season-action-bar {
+.progress-stats-grid {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 14px;
+}
+
+@media (min-width: 640px) {
+  .progress-stats-grid {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.progress-col {
+  flex: 1;
+}
+
+.progress-header-labels {
+  display: flex;
   justify-content: space-between;
-  margin-bottom: 14px;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.season-info-count {
-  display: flex;
   align-items: center;
-  gap: 8px;
+  font-size: 0.82rem;
+  margin-bottom: 6px;
 }
 
-.count-text {
-  font-size: 0.8rem;
-  color: var(--text-dim);
-}
-
-.season-completed-badge {
+.prog-label {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #12100e;
-  background-color: var(--color-accent);
-  padding: 2px 7px;
-  border-radius: var(--radius-sm);
+  gap: 6px;
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.trophy-gold {
+  color: var(--color-accent);
+}
+
+.prog-numbers {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.detail-progress-bar {
+  width: 100%;
+  height: 6px;
+  background-color: var(--bg-surface-elevated);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.detail-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  border-radius: 3px;
+  transition: width 0.4s ease;
 }
 
 .season-watch-all-btn {
@@ -685,41 +819,197 @@ onMounted(() => {
   background-color: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
   color: var(--text-main);
-  padding: 6px 12px;
-  border-radius: var(--radius-full);
-  font-size: 0.78rem;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
-.season-watch-all-btn:hover:not(:disabled) {
+.season-watch-all-btn:hover {
   border-color: var(--color-accent);
   color: var(--color-accent);
 }
 
-.season-watch-all-btn.all-watched {
-  background-color: rgba(245, 197, 24, 0.15);
-  border-color: var(--color-accent);
+/* Onde Jogar (Plataformas) */
+.platforms-chips-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.platform-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--text-main);
+  font-weight: 500;
+}
+
+/* Recursos do Jogo */
+.features-chips-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.feature-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.feat-check {
   color: var(--color-accent);
 }
 
+/* Screenshots / Prints */
+.screenshots-track {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: none;
+}
+
+.screenshots-track::-webkit-scrollbar {
+  display: none;
+}
+
+.screenshot-thumb-wrapper {
+  position: relative;
+  flex: 0 0 200px;
+  width: 200px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+@media (min-width: 640px) {
+  .screenshot-thumb-wrapper {
+    flex: 0 0 260px;
+    width: 260px;
+  }
+}
+
+.screenshot-thumb-wrapper:hover {
+  border-color: var(--color-accent);
+}
+
+.screenshot-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.screenshot-hover-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accent);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.screenshot-thumb-wrapper:hover .screenshot-hover-overlay {
+  opacity: 1;
+}
+
+/* Amigos que Jogam */
+.housemates-avatars {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: none;
+}
+
+.housemates-avatars::-webkit-scrollbar {
+  display: none;
+}
+
+.housemate-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.hm-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  border: 1px solid var(--color-border);
+}
+
+.hm-avatar-placeholder {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.hm-name {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  max-width: 50px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hm-rating {
+  font-size: 0.65rem;
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+/* Reviews */
 .episodes-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .review-card {
   background-color: var(--bg-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 14px;
-  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
 }
 
 .review-card.highlight {
   border-color: rgba(245, 197, 24, 0.35);
+  background: linear-gradient(180deg, rgba(245, 197, 24, 0.05) 0%, var(--bg-surface) 100%);
 }
 
 .review-card-header {
@@ -730,79 +1020,15 @@ onMounted(() => {
 }
 
 .review-author {
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-size: 0.84rem;
+  font-weight: 600;
   color: var(--text-main);
 }
 
 .review-body {
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   color: var(--text-muted);
+  line-height: 1.5;
   font-style: italic;
-  line-height: 1.4;
-}
-
-.loading-state {
-  text-align: center;
-  padding: 40px 0;
-  color: var(--text-muted);
-}
-
-.spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--color-border);
-  border-top-color: var(--color-accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin: 0 auto 12px;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.empty-state-detail {
-  text-align: center;
-  padding: 80px 20px;
-}
-
-.empty-icon-box {
-  width: 80px;
-  height: 80px;
-  background-color: var(--bg-surface-elevated);
-  border-radius: var(--radius-full);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 16px;
-}
-
-.error-icon {
-  color: var(--color-danger);
-}
-
-.error-title {
-  font-size: 1.3rem;
-  font-weight: 700;
-  margin-bottom: 8px;
-  color: var(--text-main);
-}
-
-.error-desc {
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  max-width: 400px;
-  margin: 0 auto 24px;
-}
-
-.error-actions {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-}
-
-.clickable {
-  cursor: pointer;
 }
 </style>

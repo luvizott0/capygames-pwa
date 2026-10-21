@@ -12,7 +12,10 @@
             <span v-if="heroGameRating" class="badge-rating mono">
               ★ {{ Number(heroGameRating).toFixed(1) }}
             </span>
-            <span v-if="heroGamePlatform" class="badge-tag badge-platform mono">{{ heroGamePlatform }}</span>
+            <!-- Apenas Ícone da Plataforma (sem label de texto) -->
+            <span class="platform-icon-pill" :title="heroGamePlatform">
+              <PlatformIcon :platform="heroGamePlatform" :size="16" />
+            </span>
             <span v-if="heroGame.developer" class="meta-text">{{ heroGame.developer }}</span>
             <span v-if="heroGame.genres && heroGame.genres.length > 0" class="meta-dot">•</span>
             <span v-if="heroGame.genres && heroGame.genres.length > 0" class="meta-text">{{ heroGame.genres[0] }}</span>
@@ -57,7 +60,7 @@
     </div>
 
     <div class="container page-content">
-      <!-- Continuar Jogando (se houver jogos com status 'playing') -->
+      <!-- Continuar Jogando (Últimos 5 jogos jogados por data) -->
       <section v-if="currentlyPlayingGames.length > 0 && selectedCategory === 'all'" class="continue-section">
         <div class="section-header">
           <h2 class="section-title mono">Continuar Jogando</h2>
@@ -80,35 +83,81 @@
               :key="item.id"
               class="continue-card"
             >
-              <router-link
-                :to="`/game/${item.game?.id || item.game_id}`"
-                class="continue-link"
-              >
-                <div class="continue-thumb-wrapper">
-                  <img
-                    :src="item.game?.banner_url || item.game?.cover_url"
-                    :alt="item.game?.title"
-                    class="continue-thumb"
-                    loading="lazy"
-                  />
-                  <div class="play-overlay-mini">
-                    <Play :size="16" fill="currentColor" />
-                  </div>
-                  <div class="continue-progress-bar">
-                    <div
-                      class="continue-progress-fill"
-                      :style="{ width: `${getProgressPercent(item)}%` }"
-                    ></div>
-                  </div>
+              <div class="continue-thumb-wrapper" @click="goToGame(item.game?.id || item.game_id)">
+                <img
+                  :src="item.game?.banner_url || item.game?.cover_url"
+                  :alt="item.game?.title"
+                  class="continue-thumb"
+                  loading="lazy"
+                />
+                <div class="play-overlay-mini">
+                  <Play :size="18" fill="currentColor" />
                 </div>
-                <div class="continue-info">
-                  <h4 class="continue-title">{{ item.game?.title }}</h4>
-                  <span class="continue-platform mono">
-                    {{ item.platform || 'PC' }}
-                    <template v-if="item.hours_played > 0"> • {{ item.hours_played }}h</template>
+                <div class="continue-progress-bar">
+                  <div
+                    class="continue-progress-fill"
+                    :style="{ width: `${getProgressPercent(item)}%` }"
+                  ></div>
+                </div>
+              </div>
+
+              <div class="continue-info">
+                <h4 class="continue-title" @click="goToGame(item.game?.id || item.game_id)">
+                  {{ item.game?.title }}
+                </h4>
+
+                <!-- Metadados com apenas ÍCONE da plataforma -->
+                <div class="continue-meta-row">
+                  <span class="platform-icon-wrap" :title="item.platform || 'PC'">
+                    <PlatformIcon :platform="item.platform || 'PC'" :size="14" />
                   </span>
+                  <span v-if="item.hours_played > 0" class="meta-dot">•</span>
+                  <span v-if="item.hours_played > 0" class="hours-text mono">{{ item.hours_played }}h</span>
                 </div>
-              </router-link>
+
+                <!-- Botões de Ação com Apenas ÍCONES -->
+                <div class="card-icon-actions">
+                  <!-- 1. Ir aos detalhes -->
+                  <button
+                    type="button"
+                    class="action-icon-btn"
+                    title="Ver detalhes do jogo"
+                    @click="goToGame(item.game?.id || item.game_id)"
+                  >
+                    <Info :size="14" />
+                  </button>
+
+                  <!-- 2. Marcar como Zerado -->
+                  <button
+                    type="button"
+                    class="action-icon-btn complete-btn"
+                    title="Marcar como Zerado"
+                    @click="promptCompleteGame(item)"
+                  >
+                    <Trophy :size="14" />
+                  </button>
+
+                  <!-- 3. Marcar como Abandonado -->
+                  <button
+                    type="button"
+                    class="action-icon-btn drop-btn"
+                    title="Marcar como Abandonado"
+                    @click="promptDropGame(item)"
+                  >
+                    <Ban :size="14" />
+                  </button>
+
+                  <!-- 4. Fazer Review / Avaliar -->
+                  <button
+                    type="button"
+                    class="action-icon-btn review-btn"
+                    title="Avaliar e escrever análise"
+                    @click="openReviewModal(item)"
+                  >
+                    <Star :size="14" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -191,6 +240,57 @@
         />
       </div>
     </div>
+
+    <!-- Modal de Confirmação: Marcar como Zerado -->
+    <div v-if="showCompleteModal && targetUserGame" class="confirm-modal-backdrop" @click.self="showCompleteModal = false">
+      <div class="confirm-modal-card fade-in">
+        <div class="confirm-modal-icon trophy-icon-box">
+          <Trophy :size="28" />
+        </div>
+        <h3 class="confirm-modal-title">Parabéns por Zerar! 🏆</h3>
+        <p class="confirm-modal-desc">
+          Deseja marcar <strong>{{ targetUserGame.game?.title }}</strong> como <strong>Zerado</strong> na sua biblioteca?
+        </p>
+        <div class="confirm-modal-actions">
+          <button type="button" class="btn-secondary" @click="showCompleteModal = false">
+            Cancelar
+          </button>
+          <button type="button" class="btn-primary" :disabled="isSubmittingAction" @click="confirmComplete">
+            {{ isSubmittingAction ? 'Salvando...' : 'Confirmar Zerado' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Confirmação: Marcar como Abandonado -->
+    <div v-if="showDropModal && targetUserGame" class="confirm-modal-backdrop" @click.self="showDropModal = false">
+      <div class="confirm-modal-card fade-in">
+        <div class="confirm-modal-icon drop-icon-box">
+          <Ban :size="28" />
+        </div>
+        <h3 class="confirm-modal-title">Abandonar Jogo</h3>
+        <p class="confirm-modal-desc">
+          Deseja marcar <strong>{{ targetUserGame.game?.title }}</strong> como <strong>Abandonado</strong>? Você poderá retomar depois quando quiser.
+        </p>
+        <div class="confirm-modal-actions">
+          <button type="button" class="btn-secondary" @click="showDropModal = false">
+            Cancelar
+          </button>
+          <button type="button" class="btn-primary danger" :disabled="isSubmittingAction" @click="confirmDrop">
+            {{ isSubmittingAction ? 'Salvando...' : 'Confirmar Abandono' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Avaliação / Review / Horas -->
+    <GameStatusModal
+      :is-open="isStatusModalOpen"
+      :user-game="selectedGameForStatus"
+      @close="isStatusModalOpen = false"
+      @updated="handleStatusUpdated"
+      @removed="handleStatusRemoved"
+    />
   </div>
 </template>
 
@@ -202,12 +302,18 @@ import {
   Bookmark,
   ChevronLeft,
   ChevronRight,
-  Play
+  Play,
+  Info,
+  Trophy,
+  Ban,
+  Star
 } from 'lucide-vue-next'
 import { useGamesStore } from '@/stores/games'
-import type { CapyUserGame } from '@/api/capygames'
+import { capyGamesApi, type CapyUserGame } from '@/api/capygames'
 import GameCard from '@/components/GameCard.vue'
 import GameCarousel from '@/components/GameCarousel.vue'
+import PlatformIcon from '@/components/PlatformIcon.vue'
+import GameStatusModal from '@/components/GameStatusModal.vue'
 
 const router = useRouter()
 const gamesStore = useGamesStore()
@@ -215,6 +321,16 @@ const gamesStore = useGamesStore()
 const selectedCategory = ref('all')
 const continueTrackRef = ref<HTMLElement | null>(null)
 const canScrollContinueLeft = ref(false)
+
+// Modais de ação rápida
+const targetUserGame = ref<CapyUserGame | null>(null)
+const showCompleteModal = ref(false)
+const showDropModal = ref(false)
+const isSubmittingAction = ref(false)
+
+// Modal de status/review
+const isStatusModalOpen = ref(false)
+const selectedGameForStatus = ref<CapyUserGame | null>(null)
 
 const categories = [
   { key: 'all', label: 'Todos' },
@@ -232,9 +348,17 @@ const categoryTitle = computed(() => {
   return cat ? cat.label : 'Jogos'
 })
 
-// Lista de jogos atualmente em 'playing'
+// Últimos 5 jogos jogados na listagem por data
 const currentlyPlayingGames = computed(() => {
-  return gamesStore.myList.filter(ug => ug.status === 'playing')
+  return gamesStore.myList
+    .filter(ug => ug.status === 'playing')
+    .slice()
+    .sort((a, b) => {
+      const dateA = new Date(a.updated_at || a.created_at || 0).getTime()
+      const dateB = new Date(b.updated_at || b.created_at || 0).getTime()
+      return dateB - dateA
+    })
+    .slice(0, 5)
 })
 
 // Jogos populares
@@ -324,10 +448,81 @@ const isHeroInLibrary = computed(() => {
   return gamesStore.myList.some(ug => ug.game_id === heroGame.value.id || ug.game?.id === heroGame.value.id)
 })
 
+function goToGame(id: number) {
+  if (id) {
+    router.push(`/game/${id}`)
+  }
+}
+
 function toggleFavoriteHero() {
   if (heroGame.value) {
     router.push(`/game/${heroGame.value.id}`)
   }
+}
+
+function promptCompleteGame(item: CapyUserGame) {
+  targetUserGame.value = item
+  showCompleteModal.value = true
+}
+
+function promptDropGame(item: CapyUserGame) {
+  targetUserGame.value = item
+  showDropModal.value = true
+}
+
+function openReviewModal(item: CapyUserGame) {
+  selectedGameForStatus.value = item
+  isStatusModalOpen.value = true
+}
+
+async function confirmComplete() {
+  if (!targetUserGame.value) return
+  isSubmittingAction.value = true
+  try {
+    await capyGamesApi.setStatus({
+      game_id: targetUserGame.value.game_id || targetUserGame.value.game?.id,
+      status: 'completed',
+      platform: targetUserGame.value.platform,
+      hours_played: targetUserGame.value.hours_played,
+      rating: targetUserGame.value.rating
+    })
+    showCompleteModal.value = false
+    await gamesStore.fetchMyList(true)
+  } catch (err) {
+    console.error('Erro ao marcar jogo como zerado:', err)
+  } finally {
+    isSubmittingAction.value = false
+  }
+}
+
+async function confirmDrop() {
+  if (!targetUserGame.value) return
+  isSubmittingAction.value = true
+  try {
+    await capyGamesApi.setStatus({
+      game_id: targetUserGame.value.game_id || targetUserGame.value.game?.id,
+      status: 'dropped',
+      platform: targetUserGame.value.platform,
+      hours_played: targetUserGame.value.hours_played,
+      rating: targetUserGame.value.rating
+    })
+    showDropModal.value = false
+    await gamesStore.fetchMyList(true)
+  } catch (err) {
+    console.error('Erro ao marcar jogo como abandonado:', err)
+  } finally {
+    isSubmittingAction.value = false
+  }
+}
+
+async function handleStatusUpdated() {
+  isStatusModalOpen.value = false
+  await gamesStore.fetchMyList(true)
+}
+
+async function handleStatusRemoved() {
+  isStatusModalOpen.value = false
+  await gamesStore.fetchMyList(true)
 }
 
 function getProgressPercent(item: CapyUserGame): number {
@@ -420,6 +615,17 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 
+.platform-icon-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 7px;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-accent);
+}
+
 .meta-text {
   font-size: 0.82rem;
   color: var(--text-muted);
@@ -498,20 +704,15 @@ onMounted(async () => {
 .continue-card {
   flex: 0 0 210px;
   width: 210px;
+  display: flex;
+  flex-direction: column;
 }
 
 @media (min-width: 640px) {
   .continue-card {
-    flex: 0 0 240px;
-    width: 240px;
+    flex: 0 0 230px;
+    width: 230px;
   }
-}
-
-.continue-link {
-  display: flex;
-  flex-direction: column;
-  text-decoration: none;
-  color: inherit;
 }
 
 .continue-thumb-wrapper {
@@ -523,6 +724,7 @@ onMounted(async () => {
   background-color: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
   transition: border-color 0.2s;
+  cursor: pointer;
 }
 
 .continue-card:hover .continue-thumb-wrapper {
@@ -567,6 +769,9 @@ onMounted(async () => {
 
 .continue-info {
   margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .continue-title {
@@ -576,11 +781,77 @@ onMounted(async () => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer;
 }
 
-.continue-platform {
+.continue-title:hover {
+  color: var(--color-accent);
+}
+
+.continue-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 0.72rem;
   color: var(--text-muted);
+}
+
+.platform-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.hours-text {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* Botões de Ação com Apenas Ícones */
+.card-icon-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.action-icon-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-icon-btn:hover {
+  color: var(--text-main);
+  border-color: var(--color-primary-light);
+  background-color: var(--bg-surface-hover);
+}
+
+.action-icon-btn.complete-btn:hover {
+  color: var(--color-success);
+  border-color: rgba(52, 211, 153, 0.4);
+  background-color: rgba(52, 211, 153, 0.1);
+}
+
+.action-icon-btn.drop-btn:hover {
+  color: var(--color-danger);
+  border-color: rgba(248, 113, 113, 0.4);
+  background-color: rgba(248, 113, 113, 0.1);
+}
+
+.action-icon-btn.review-btn:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  background-color: rgba(245, 197, 24, 0.1);
 }
 
 /* Category Grid */
@@ -645,5 +916,79 @@ onMounted(async () => {
   text-align: center;
   padding: 40px 20px;
   color: var(--text-muted);
+}
+
+/* Modais de Confirmação */
+.confirm-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 16, 14, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.confirm-modal-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  text-align: center;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+}
+
+.confirm-modal-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.trophy-icon-box {
+  background: rgba(245, 197, 24, 0.15);
+  color: var(--color-accent);
+  border: 1px solid rgba(245, 197, 24, 0.35);
+}
+
+.drop-icon-box {
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--color-danger);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.confirm-modal-title {
+  font-size: 1.15rem;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+
+.confirm-modal-desc {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.confirm-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.btn-primary.danger {
+  background-color: var(--color-danger);
+  color: #fff;
+}
+
+.btn-primary.danger:hover {
+  background-color: #ef4444;
 }
 </style>
