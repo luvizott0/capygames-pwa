@@ -65,34 +65,54 @@
           </button>
         </div>
 
-        <!-- Barra Rápida de Plataformas / Categorias (Scroll Lateral) -->
+        <!-- Barra Rápida de Gêneros de Jogo (Scroll Lateral) -->
         <div v-if="!searchQuery.trim()" class="genres-scroll-bar">
           <button
             type="button"
             class="genre-pill"
-            :class="{ active: selectedPlatform === '' }"
-            @click="selectedPlatform = ''"
+            :class="{ active: selectedGenre === '' }"
+            @click="clearGenre"
           >
             Todos
           </button>
           <button
-            v-for="plat in platformsList"
-            :key="plat.id"
+            v-for="genre in genresList"
+            :key="genre.id"
             type="button"
             class="genre-pill"
-            :class="{ active: selectedPlatform === plat.id }"
-            @click="togglePlatform(plat.id)"
+            :class="{ active: selectedGenre === genre.id }"
+            @click="selectGenre(genre)"
           >
-            {{ plat.name }}
+            {{ genre.name }}
           </button>
         </div>
 
         <!-- Painel Expansível de Filtros Avançados -->
         <div v-if="showFiltersPanel && !searchQuery.trim()" class="filters-panel fade-in">
-          <!-- 1. Catálogo / Loja -->
+          <!-- 1. Plataforma -->
           <div class="filter-group">
             <label class="filter-label">
               <Gamepad2 :size="14" class="label-icon accent" />
+              <span>Plataforma</span>
+            </label>
+            <div class="chips-row">
+              <button
+                v-for="opt in platformOptions"
+                :key="opt.value"
+                type="button"
+                class="filter-chip"
+                :class="{ active: filters.platform === opt.value }"
+                @click="filters.platform = opt.value"
+              >
+                {{ opt.label }}
+              </button>
+            </div>
+          </div>
+
+          <!-- 2. Catálogo / Loja -->
+          <div class="filter-group">
+            <label class="filter-label">
+              <Gamepad2 :size="14" class="label-icon" />
               <span>Loja / Catálogo</span>
             </label>
             <div class="chips-row">
@@ -109,7 +129,7 @@
             </div>
           </div>
 
-          <!-- 2. Ordenar por -->
+          <!-- 3. Ordenar por -->
           <div class="filter-group">
             <label class="filter-label">
               <ArrowUpDown :size="14" class="label-icon" />
@@ -129,7 +149,7 @@
             </div>
           </div>
 
-          <!-- 3. Cadastro Manual -->
+          <!-- 4. Cadastro Manual -->
           <div class="filter-group">
             <label class="filter-label">
               <Plus :size="14" class="label-icon" />
@@ -208,9 +228,11 @@
       <section v-else-if="hasActiveFilters" class="section fade-in">
         <div class="filtered-header">
           <div>
-            <h2 class="section-title mono">Jogos Filtrados</h2>
+            <h2 class="section-title mono">
+              {{ selectedGenreName ? `Jogos de ${selectedGenreName}` : 'Jogos Filtrados' }}
+            </h2>
             <p class="filtered-subtitle">
-              {{ filteredGames.length }} jogos encontrados em destaque
+              {{ filteredGames.length }} jogos encontrados
             </p>
           </div>
           <button type="button" class="clear-inline-btn" @click="resetAllFilters">
@@ -219,7 +241,12 @@
           </button>
         </div>
 
-        <div v-if="filteredGames.length === 0" class="empty-search">
+        <div v-if="genreLoading && filteredGames.length === 0" class="loading-state">
+          <div class="spinner"></div>
+          <p>Buscando jogos do gênero...</p>
+        </div>
+
+        <div v-else-if="filteredGames.length === 0" class="empty-search">
           <p>Nenhum jogo encontrado com essa combinação de filtros.</p>
           <button type="button" class="btn-secondary mt-btn" @click="resetAllFilters">
             Remover Filtros
@@ -251,7 +278,7 @@
                 <Gamepad2 :size="28" />
               </div>
               <div class="rating-badge mono">
-                {{ game.external_source.toUpperCase() }}
+                {{ selectedGenreName || game.external_source.toUpperCase() }}
               </div>
             </div>
             <div class="series-info">
@@ -290,7 +317,7 @@
                   <Gamepad2 :size="28" />
                 </div>
                 <div class="rating-badge mono">
-                  ★ DESTAQUE
+                  {{ game.genres?.[0] || '★ DESTAQUE' }}
                 </div>
               </div>
               <div class="series-info">
@@ -327,7 +354,7 @@
                   <Gamepad2 :size="28" />
                 </div>
                 <div class="rating-badge mono">
-                  STEAM
+                  {{ game.genres?.[0] || 'STEAM' }}
                 </div>
               </div>
               <div class="series-info">
@@ -385,6 +412,7 @@ const searchResults = computed({
   set: (v: GameSearchResult[]) => { gamesStore.discoverSearchResults = v }
 })
 const searching = ref(false)
+const genreLoading = ref(false)
 let debounceTimeout: any = null
 
 const showFiltersPanel = computed({
@@ -392,21 +420,47 @@ const showFiltersPanel = computed({
   set: (v: boolean) => { gamesStore.discoverShowFiltersPanel = v }
 })
 
-const platformsList = [
-  { id: 'PC', name: 'PC / Steam' },
-  { id: 'PlayStation', name: 'PlayStation' },
-  { id: 'Xbox', name: 'Xbox' },
-  { id: 'Nintendo Switch', name: 'Nintendo Switch' },
-  { id: 'Steam Deck', name: 'Steam Deck' },
-  { id: 'Retro', name: 'Retro / Emulador' }
+interface GenreItem {
+  id: string
+  name: string
+  searchTerm: string
+}
+
+const genresList: GenreItem[] = [
+  { id: 'RPG', name: 'RPG', searchTerm: 'RPG' },
+  { id: 'Ação', name: 'Ação', searchTerm: 'Action' },
+  { id: 'Aventura', name: 'Aventura', searchTerm: 'Adventure' },
+  { id: 'FPS / Tiro', name: 'FPS / Tiro', searchTerm: 'Shooter' },
+  { id: 'Mundo Aberto', name: 'Mundo Aberto', searchTerm: 'Open World' },
+  { id: 'Soulslike', name: 'Soulslike', searchTerm: 'Souls' },
+  { id: 'Terror', name: 'Terror', searchTerm: 'Horror' },
+  { id: 'Indie', name: 'Indie', searchTerm: 'Indie' },
+  { id: 'Estratégia', name: 'Estratégia', searchTerm: 'Strategy' },
+  { id: 'Simulação', name: 'Simulação', searchTerm: 'Simulator' },
+  { id: 'Sobrevivência', name: 'Sobrevivência', searchTerm: 'Survival' },
+  { id: 'Corrida', name: 'Corrida', searchTerm: 'Racing' },
+  { id: 'Luta', name: 'Luta', searchTerm: 'Fighter' },
+  { id: 'Esportes', name: 'Esportes', searchTerm: 'Sports' }
 ]
 
-const selectedPlatform = computed({
-  get: () => gamesStore.discoverSelectedPlatform,
-  set: (v: string) => { gamesStore.discoverSelectedPlatform = v }
+const selectedGenre = computed({
+  get: () => gamesStore.discoverSelectedGenre,
+  set: (v: string) => { gamesStore.discoverSelectedGenre = v }
+})
+
+const selectedGenreName = computed(() => {
+  return genresList.find(g => g.id === selectedGenre.value)?.name || ''
 })
 
 const filters = gamesStore.discoverFilters
+
+const platformOptions = [
+  { label: 'Todas', value: '' },
+  { label: 'PC / Steam', value: 'PC' },
+  { label: 'PlayStation', value: 'PlayStation' },
+  { label: 'Xbox', value: 'Xbox' },
+  { label: 'Nintendo Switch', value: 'Switch' }
+]
 
 const sourceOptions = [
   { label: 'Todos', value: '' },
@@ -421,7 +475,8 @@ const sortOptions = [
 
 const activeFilterCount = computed(() => {
   let count = 0
-  if (selectedPlatform.value !== '') count++
+  if (selectedGenre.value !== '') count++
+  if (filters.platform !== '') count++
   if (filters.source !== '') count++
   if (filters.sortBy !== 'popular') count++
   return count
@@ -429,11 +484,43 @@ const activeFilterCount = computed(() => {
 
 const hasActiveFilters = computed(() => activeFilterCount.value > 0)
 
+const FEATURED_GENRE_MAP: Record<string, string[]> = {
+  'steam:1091500': ['RPG', 'Ação', 'Aventura', 'Mundo Aberto'],
+  'steam:1245620': ['RPG', 'Ação', 'Aventura', 'Soulslike'],
+  'steam:292030': ['RPG', 'Aventura', 'Ação', 'Mundo Aberto'],
+  'steam:1086940': ['RPG', 'Aventura', 'Estratégia'],
+  'steam:1172470': ['FPS / Tiro', 'Ação'],
+  'steam:730': ['FPS / Tiro', 'Ação', 'Estratégia'],
+  'steam:2358720': ['Ação', 'RPG', 'Aventura'],
+  'steam:883710': ['Terror', 'Ação', 'Sobrevivência'],
+  'steam:1145360': ['Indie', 'Ação', 'RPG'],
+  'steam:413150': ['Simulação', 'RPG', 'Indie'],
+  'steam:105600': ['Aventura', 'Ação', 'Indie', 'Sobrevivência'],
+  'steam:1151640': ['Ação', 'Aventura', 'RPG', 'Mundo Aberto']
+}
+
+function getGameGenres(g: GameSearchResult): string[] {
+  return g.genres?.length ? g.genres : (FEATURED_GENRE_MAP[g.external_id] || [])
+}
+
 const filteredGames = computed(() => {
-  let list = [...gamesStore.popularGames]
-  if (selectedPlatform.value) {
+  // Combina jogos populares que batem com o gênero + resultados buscados para o gênero
+  let list: GameSearchResult[] = []
+
+  if (selectedGenre.value) {
+    const matchingPopular = gamesStore.popularGames.filter(g =>
+      getGameGenres(g).some(gen => gen.toLowerCase() === selectedGenre.value.toLowerCase())
+    )
+    const seen = new Set(matchingPopular.map(g => g.external_id))
+    const extraFromGenreSearch = gamesStore.discoverGenreResults.filter(g => !seen.has(g.external_id))
+    list = [...matchingPopular, ...extraFromGenreSearch]
+  } else {
+    list = [...gamesStore.popularGames]
+  }
+
+  if (filters.platform) {
     list = list.filter(g =>
-      (g.platforms || []).some(p => p.toLowerCase().includes(selectedPlatform.value.toLowerCase()))
+      (g.platforms || []).some(p => p.toLowerCase().includes(filters.platform.toLowerCase()))
     )
   }
   if (filters.source) {
@@ -455,12 +542,27 @@ function onForceRefresh() {
   gamesStore.fetchDiscover(true)
 }
 
-function togglePlatform(platId: string) {
-  if (selectedPlatform.value === platId) {
-    selectedPlatform.value = ''
-  } else {
-    selectedPlatform.value = platId
+async function selectGenre(genre: GenreItem) {
+  if (selectedGenre.value === genre.id) {
+    clearGenre()
+    return
   }
+  selectedGenre.value = genre.id
+  gamesStore.discoverGenreResults = []
+  genreLoading.value = true
+  try {
+    const res = await capyGamesApi.search(genre.searchTerm)
+    gamesStore.discoverGenreResults = res.data.data || []
+  } catch (err) {
+    console.error('Erro ao buscar jogos por gênero:', err)
+  } finally {
+    genreLoading.value = false
+  }
+}
+
+function clearGenre() {
+  selectedGenre.value = ''
+  gamesStore.discoverGenreResults = []
 }
 
 function resetAllFilters() {
@@ -561,7 +663,7 @@ onMounted(() => {
   align-items: center;
   background-color: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   padding: 3px;
   gap: 2px;
 }
@@ -571,7 +673,7 @@ onMounted(() => {
   align-items: center;
   gap: 4px;
   padding: 5px 10px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-size: 0.75rem;
   font-weight: 700;
@@ -613,7 +715,7 @@ onMounted(() => {
   font-size: 0.7rem;
   font-weight: 700;
   padding: 1px 6px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
 }
 
 .search-bar {
@@ -645,7 +747,7 @@ onMounted(() => {
   padding: 4px;
 }
 
-/* Barra de Gêneros / Plataformas */
+/* Barra de Gêneros */
 .genres-scroll-bar {
   display: flex;
   gap: 8px;
@@ -660,7 +762,7 @@ onMounted(() => {
 
 .genre-pill {
   padding: 6px 14px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   background-color: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
   color: var(--text-muted);

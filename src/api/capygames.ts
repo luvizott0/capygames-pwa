@@ -50,6 +50,7 @@ export interface GameSearchResult {
   developer?: string
   publisher?: string
   platforms?: string[]
+  genres?: string[]
 }
 
 export interface GameActivity {

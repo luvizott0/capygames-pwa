@@ -27,10 +27,11 @@
             @click="goToProfile(u.id)"
           >
             <img
-              v-if="u.avatar_url"
+              v-if="u.avatar_url && !failedAvatars[`friend_${u.id}`]"
               :src="u.avatar_url"
               :alt="u.name"
               class="friend-avatar"
+              @error="failedAvatars[`friend_${u.id}`] = true"
             />
             <div v-else class="friend-avatar-placeholder">
               {{ u.name.charAt(0) }}
@@ -61,10 +62,11 @@
           <div class="user-row" @click="goToProfile(act.user.id)">
             <div class="user-main">
               <img
-                v-if="act.user.avatar_url"
+                v-if="act.user.avatar_url && !failedAvatars[`act_${act.id}`]"
                 :src="act.user.avatar_url"
                 :alt="act.user.name"
                 class="user-avatar"
+                @error="failedAvatars[`act_${act.id}`] = true"
               />
               <div v-else class="user-avatar-placeholder">
                 {{ act.user.name.charAt(0) }}
@@ -137,7 +139,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Users, Star, MessageSquare, Trophy } from 'lucide-vue-next'
 import { capyGamesApi, type GameActivity } from '@/api/capygames'
@@ -147,6 +149,7 @@ import RefreshButton from '@/components/RefreshButton.vue'
 const router = useRouter()
 const gamesStore = useGamesStore()
 const houseUsers = ref<any[]>([])
+const failedAvatars = reactive<Record<string, boolean>>({})
 
 async function fetchUsers() {
   try {

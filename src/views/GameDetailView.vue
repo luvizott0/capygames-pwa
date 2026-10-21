@@ -117,10 +117,11 @@
               @click="goToProfile(hm.user.id)"
             >
               <img
-                v-if="hm.user.avatar_url"
+                v-if="hm.user.avatar_url && !failedAvatars[hm.user.id]"
                 :src="hm.user.avatar_url"
                 :alt="hm.user.name"
                 class="hm-avatar"
+                @error="failedAvatars[hm.user.id] = true"
               />
               <div v-else class="hm-avatar-placeholder">
                 {{ hm.user.name.charAt(0) }}
@@ -230,7 +231,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Gamepad2, Star, Users, AlertCircle, RotateCw, Check, Edit3 } from 'lucide-vue-next'
 import { capyGamesApi, type CapyGame, type CapyUserGame, type GameStatus } from '@/api/capygames'
@@ -242,6 +243,7 @@ const route = useRoute()
 const router = useRouter()
 const gameId = Number(route.params.id)
 const gamesStore = useGamesStore()
+const failedAvatars = reactive<Record<number, boolean>>({})
 
 const loading = ref(true)
 const errorMessage = ref<string | null>(null)

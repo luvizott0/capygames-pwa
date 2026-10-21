@@ -17,10 +17,11 @@
       <div class="profile-card">
         <div class="user-header">
           <img
-            v-if="profile.user.avatar_url"
+            v-if="profile.user.avatar_url && !avatarBroken"
             :src="profile.user.avatar_url"
             :alt="profile.user.name"
             class="avatar-lg"
+            @error="avatarBroken = true"
           />
           <div v-else class="avatar-lg-placeholder">
             {{ profile.user.name.charAt(0) }}
@@ -400,6 +401,7 @@ const targetUserId = computed(() => {
 
 const profile = ref<any>(targetUserId.value ? gamesStore.getCachedProfile(targetUserId.value) : null)
 const loading = ref(!profile.value)
+const avatarBroken = ref(false)
 
 const isSyncingSteam = ref(false)
 const isSyncingXbox = ref(false)

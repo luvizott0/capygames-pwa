@@ -1,61 +1,60 @@
 :root {
-  --color-primary: #7c3aed;
-  --color-primary-light: #9333ea;
-  --color-accent: #c084fc;
-  --color-accent-hover: #a855f7;
-  --color-accent-dim: rgba(192, 132, 252, 0.15);
-
+  /* Paleta CapyGames (Dark Gaming Purple & Neon Accent) */
   --bg-app: #0f0d15;
   --bg-surface: #181523;
   --bg-surface-elevated: #221d31;
   --bg-surface-hover: #2e2742;
-  --bg-modal: #1a1626;
 
-  --color-border: #2f2846;
-  --color-border-subtle: #241e36;
+  /* Roxo / Violeta CapyGames */
+  --color-primary: #7c3aed;
+  --color-primary-light: #9333ea;
+  --color-accent: #c084fc; /* Lilás neon de destaque */
+  --color-accent-hover: #a855f7;
+  --color-accent-dim: rgba(192, 132, 252, 0.14);
 
-  --text-main: #f3effb;
-  --text-muted: #9d93b5;
-  --text-dim: #6c6384;
+  /* Textos */
+  --text-main: #f3f0f8;
+  --text-muted: #a39bb5;
+  --text-dim: #6e6582;
 
-  --color-success: #34d399;
+  /* Feedback & Status */
+  --color-success: #4ade80;
   --color-danger: #f87171;
   --color-warning: #fbbf24;
+  --color-border: #2f2846;
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
 
-  --font-heading: 'Space Mono', monospace;
-  --font-body: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Tipografia */
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-full: 9999px;
+  /* Bordas e Sombras (Mais quadradas / retas) */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-full: 6px;
 
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Safe area para iOS / Android PWA */
   --safe-top: env(safe-area-inset-top, 0px);
-  --safe-left: env(safe-area-inset-left, 0px);
-  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
-body {
-  font-family: var(--font-body);
+html, body {
   background-color: var(--bg-app);
   color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 16px;
   line-height: 1.5;
-  overscroll-behavior-y: contain;
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
   min-height: 100vh;
-}
-
-input, textarea, button, select {
-  font-family: inherit;
-  color: inherit;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
@@ -64,12 +63,18 @@ a {
 }
 
 button {
-  background: none;
-  border: none;
+  font-family: inherit;
   cursor: pointer;
+  border: none;
+  background: none;
 }
 
-/* Custom Scrollbar */
+input, textarea, select {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* Scrollbar elegante */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -78,40 +83,43 @@ button {
   background: var(--bg-app);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-primary);
+  background: var(--bg-surface-hover);
+  border-radius: var(--radius-sm);
 }
 
-/* Utilitários */
+/* Utilitários Visuais */
 .container {
-  max-width: 768px;
+  width: 100%;
+  max-width: 1024px;
   margin: 0 auto;
   padding: 0 16px;
 }
 
 .mono {
-  font-family: var(--font-heading);
+  font-family: var(--font-mono);
 }
 
 .badge-rating {
-  font-family: var(--font-heading);
-  font-weight: 700;
-  background-color: var(--color-accent);
-  color: #0f0d15;
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.8rem;
+  background: rgba(192, 132, 252, 0.15);
+  color: var(--color-accent);
+  border: 1px solid rgba(192, 132, 252, 0.35);
 }
 
 .badge-tag {
-  font-size: 0.75rem;
-  padding: 3px 8px;
-  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  font-weight: 600;
   background-color: var(--bg-surface-elevated);
   color: var(--text-muted);
   border: 1px solid var(--color-border);
@@ -124,14 +132,20 @@ button {
   gap: 8px;
   background-color: var(--color-accent);
   color: #0f0d15;
-  font-weight: 600;
-  padding: 12px 20px;
+  font-weight: 700;
+  padding: 10px 18px;
   border-radius: var(--radius-md);
   transition: all 0.2s ease;
 }
-.btn-primary:hover {
+
+.btn-primary:hover:not(:disabled) {
   background-color: var(--color-accent-hover);
   transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .btn-secondary {
@@ -142,21 +156,23 @@ button {
   background-color: var(--bg-surface-elevated);
   color: var(--text-main);
   border: 1px solid var(--color-border);
-  font-weight: 500;
-  padding: 10px 16px;
+  font-weight: 600;
+  padding: 10px 18px;
   border-radius: var(--radius-md);
   transition: all 0.2s ease;
 }
-.btn-secondary:hover {
+
+.btn-secondary:hover:not(:disabled) {
   background-color: var(--bg-surface-hover);
+  border-color: var(--color-primary);
 }
 
-/* Animations */
+/* Animação suave de entrada */
+.fade-in {
+  animation: fadeIn 0.25s ease-out;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-.fade-in {
-  animation: fadeIn 0.25s ease-out forwards;
 }

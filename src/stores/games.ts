@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { capyGamesApi, type CapyUserGame, type GameSearchResult, type GameActivity } from '@/api/capygames'
 
 const MY_LIST_CACHE_KEY = 'capygames_my_list_cache'
-const DISCOVER_CACHE_KEY = 'capygames_discover_cache'
+const DISCOVER_CACHE_KEY = 'capygames_discover_cache_v2'
 const COMMUNITY_CACHE_KEY = 'capygames_community_cache'
 
 function loadFromStorage<T>(key: string, defaultValue: T): T {
@@ -45,8 +45,10 @@ export const useGamesStore = defineStore('games', () => {
   // 4. Discover Filter & Search State (Persistente durante a sessão de navegação)
   const discoverSearchQuery = ref('')
   const discoverSearchResults = ref<GameSearchResult[]>([])
-  const discoverSelectedPlatform = ref('')
+  const discoverSelectedGenre = ref('')
+  const discoverGenreResults = ref<GameSearchResult[]>([])
   const discoverFilters = ref({
+    platform: '',
     source: '',
     sortBy: 'popular'
   })
@@ -131,8 +133,10 @@ export const useGamesStore = defineStore('games', () => {
   }
 
   function resetDiscoverFilters() {
-    discoverSelectedPlatform.value = ''
+    discoverSelectedGenre.value = ''
+    discoverGenreResults.value = []
     discoverFilters.value = {
+      platform: '',
       source: '',
       sortBy: 'popular'
     }
@@ -161,7 +165,8 @@ export const useGamesStore = defineStore('games', () => {
 
     discoverSearchQuery,
     discoverSearchResults,
-    discoverSelectedPlatform,
+    discoverSelectedGenre,
+    discoverGenreResults,
     discoverFilters,
     discoverShowFiltersPanel,
     resetDiscoverFilters,
