@@ -1,7 +1,5 @@
 <template>
   <div class="app-root">
-    <HeaderNav v-if="authStore.isAuthenticated && route.name !== 'login'" />
-
     <main class="main-content">
       <router-view v-slot="{ Component, route: currentRoute }">
         <transition name="fade" mode="out-in">
@@ -20,7 +18,6 @@
 import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import HeaderNav from '@/components/HeaderNav.vue'
 import BottomNav from '@/components/BottomNav.vue'
 
 const route = useRoute()

@@ -3,6 +3,10 @@
     <header class="page-header">
       <div class="header-top">
         <h1 class="header-title mono">Buscar no Catálogo</h1>
+        <RefreshButton
+          :is-refreshing="gamesStore.isRefreshingDiscover"
+          @refresh="onForceRefresh"
+        />
       </div>
 
       <!-- Barra de Busca no estilo CapyFlix / CapyShowTime -->
@@ -144,6 +148,7 @@ import { Search, X, Gamepad2, LayoutGrid, Grid } from 'lucide-vue-next'
 import { useGamesStore } from '@/stores/games'
 import { capyGamesApi, type GameSearchResult } from '@/api/capygames'
 import GameCard from '@/components/GameCard.vue'
+import RefreshButton from '@/components/RefreshButton.vue'
 
 const gamesStore = useGamesStore()
 
@@ -201,6 +206,10 @@ function onSearchInput() {
 function clearSearch() {
   searchQuery.value = ''
   searchResults.value = []
+}
+
+async function onForceRefresh() {
+  await gamesStore.fetchDiscover(true)
 }
 
 function selectPlatform(id: string) {

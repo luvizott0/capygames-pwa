@@ -43,20 +43,66 @@
               <span v-if="game.developer" class="meta-item">{{ game.developer }}</span>
               <span v-if="game.developer && releaseDateText" class="meta-bullet">•</span>
               <span v-if="releaseDateText" class="meta-item mono">{{ releaseDateText }}</span>
+              <span v-if="gameSinceText" class="meta-bullet">•</span>
+              <span v-if="gameSinceText" class="meta-item mono">{{ gameSinceText }}</span>
             </div>
 
-            <!-- Seletor de Status na Lista -->
-            <div class="status-selector">
-              <select :value="myStatus?.status || 'none'" class="status-select" @change="onStatusChange">
-                <option value="none">+ Adicionar à Lista</option>
-                <option value="plan_to_play">📌 Quero Jogar</option>
-                <option value="playing">▶ Jogando</option>
-                <option value="completed">✓ Zerado</option>
-                <option value="mastered">🏆 Platinado (100%)</option>
-                <option value="on_hold">⏸ Em Pausa</option>
-                <option value="dropped">✕ Abandonado</option>
-                <option v-if="myStatus" value="remove">Remover da Lista</option>
-              </select>
+            <!-- Botões de Ação na Lista & Status -->
+            <div class="detail-actions-bar">
+              <!-- Botão Adicionar à Lista / Na Lista (Substitui com ícone de remover/check) -->
+              <button
+                type="button"
+                class="btn-list-toggle"
+                :class="{ 'in-list': isInList }"
+                :disabled="isTogglingList"
+                @click="handleToggleList"
+                :title="isInList ? 'Clique para remover da sua lista' : 'Adicionar à sua lista de jogos a jogar'"
+              >
+                <BookmarkCheck v-if="isInList" :size="16" class="icon-in-list" />
+                <Plus v-else :size="16" />
+                <span>{{ isInList ? 'Na Lista' : 'Adicionar à Lista' }}</span>
+              </button>
+
+              <!-- Status Atual do Jogo (Jogando, Zerado, Platinado, Em Pausa, Abandonado) -->
+              <div v-if="myStatus?.status && myStatus.status !== 'plan_to_play'" class="status-indicator-badge" :class="`badge-${effectiveStatus}`">
+                <span>{{ getStatusLabel(effectiveStatus) }}</span>
+              </div>
+
+              <!-- Ações Rápidas -->
+              <div class="quick-status-actions">
+                <button
+                  v-if="effectiveStatus !== 'completed' && effectiveStatus !== 'mastered'"
+                  type="button"
+                  class="btn-quick-status"
+                  title="Marcar como Zerado"
+                  @click="markStatus('completed')"
+                >
+                  <Trophy :size="14" />
+                  <span>Zerar</span>
+                </button>
+
+                <button
+                  v-if="effectiveStatus === 'playing' || effectiveStatus === 'on_hold'"
+                  type="button"
+                  class="btn-quick-status danger"
+                  title="Marcar como Abandonado"
+                  @click="markStatus('dropped')"
+                >
+                  <Ban :size="14" />
+                  <span>Abandonar</span>
+                </button>
+
+                <button
+                  v-if="effectiveStatus === 'dropped'"
+                  type="button"
+                  class="btn-quick-status"
+                  title="Retomar Jogatina"
+                  @click="markStatus('playing')"
+                >
+                  <Play :size="14" />
+                  <span>Retomar</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -89,13 +135,13 @@
             <span class="rating-subtext">Média dos amigos ({{ totalRatings }})</span>
           </div>
 
-          <!-- 3. Tempo Jogado -->
+          <!-- 3. Tempo Jogado (Soma de Todas as Plataformas) -->
           <div class="rating-card clickable" @click="isModalOpen = true">
             <span class="rating-label">Seu Tempo</span>
             <div class="rating-value-box">
-              <span class="rating-val mono">{{ myStatus?.hours_played || 0 }}h</span>
+              <span class="rating-val mono">{{ totalPlatformHours }}h</span>
             </div>
-            <span class="rating-subtext">{{ myStatus?.platform || 'Registrar horas' }}</span>
+            <span class="rating-subtext" :title="platformHoursBreakdown">{{ platformHoursSubtext }}</span>
           </div>
         </div>
 
@@ -310,9 +356,13 @@ import {
   Check,
   Edit3,
   Trophy,
-  Maximize2
+  Maximize2,
+  Plus,
+  BookmarkCheck,
+  Play,
+  Ban
 } from 'lucide-vue-next'
-import { capyGamesApi, type CapyGame, type CapyUserGame, type GameStatus } from '@/api/capygames'
+import { capyGamesApi, type CapyGame, type CapyUserGame } from '@/api/capygames'
 import { useGamesStore } from '@/stores/games'
 import GameStatusModal from '@/components/GameStatusModal.vue'
 import ImageViewerModal from '@/components/ImageViewerModal.vue'
@@ -331,6 +381,7 @@ const myStatus = ref<CapyUserGame | null>(null)
 const communityRating = ref<number | null>(null)
 const totalRatings = ref(0)
 const housemates = ref<any[]>([])
+const isTogglingList = ref(false)
 
 const isModalOpen = ref(false)
 const isImageViewerOpen = ref(false)
@@ -341,7 +392,66 @@ const housematesWithReviews = computed(() => {
 })
 
 const releaseDateText = computed(() => {
-  return game.value?.raw_data?.release_date || game.value?.release_date || ''
+  const raw = game.value?.raw_data?.release_date || game.value?.release_date
+  if (!raw) return ''
+  try {
+    const d = new Date(raw)
+    if (!isNaN(d.getTime())) {
+      return `Lançamento: ${d.toLocaleDateString('pt-BR')}`
+    }
+  } catch {}
+  return `Lançamento: ${raw}`
+})
+
+const gameSinceText = computed(() => {
+  const dateStr = myStatus.value?.started_at || myStatus.value?.created_at
+  if (!dateStr || !myStatus.value) return null
+  try {
+    const d = new Date(dateStr)
+    return `Na biblioteca desde: ${d.toLocaleDateString('pt-BR')}`
+  } catch {
+    return null
+  }
+})
+
+const isInList = computed(() => {
+  return Boolean(myStatus.value?.in_list || myStatus.value?.status === 'plan_to_play')
+})
+
+const effectiveStatus = computed<string>(() => {
+  if (!myStatus.value) return ''
+  const st = myStatus.value.status
+  if (st === 'playing' && myStatus.value.updated_at) {
+    const updated = new Date(myStatus.value.updated_at).getTime()
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000
+    if (updated < thirtyDaysAgo) {
+      return 'on_hold'
+    }
+  }
+  return st
+})
+
+// Horas jogadas somadas em todas as plataformas
+const totalPlatformHours = computed(() => {
+  return myStatus.value?.hours_played || 0
+})
+
+const platformHoursBreakdown = computed(() => {
+  const ph = myStatus.value?.platform_hours
+  if (ph && Object.keys(ph).length > 0) {
+    return Object.entries(ph)
+      .map(([plat, h]) => `${plat}: ${h}h`)
+      .join(' • ')
+  }
+  return myStatus.value?.platform || 'Todas as plataformas'
+})
+
+const platformHoursSubtext = computed(() => {
+  const ph = myStatus.value?.platform_hours
+  if (ph && Object.keys(ph).length > 1) {
+    return `${Object.keys(ph).length} plataformas somadas`
+  }
+  return myStatus.value?.platform || 'Todas as plataformas'
 })
 
 const availablePlatforms = computed(() => {
@@ -419,29 +529,37 @@ function closeImageViewer() {
   currentImageUrl.value = ''
 }
 
-async function onStatusChange(e: Event) {
-  const val = (e.target as HTMLSelectElement).value
-  if (!game.value) return
-
-  if (val === 'remove') {
-    if (myStatus.value?.id) {
-      await capyGamesApi.removeGame(myStatus.value.id)
-      myStatus.value = null
-      await gamesStore.fetchMyList(true)
+async function handleToggleList() {
+  if (!game.value || isTogglingList.value) return
+  isTogglingList.value = true
+  try {
+    const res = await gamesStore.toggleList(game.value.id)
+    if (res.user_game) {
+      myStatus.value = res.user_game
     }
-    return
+    await fetchGameDetails()
+    await gamesStore.fetchMyList(true)
+  } catch (err) {
+    console.error('Erro ao alternar lista:', err)
+  } finally {
+    isTogglingList.value = false
   }
+}
 
-  if (val !== 'none') {
+async function markStatus(newStatus: 'playing' | 'completed' | 'dropped') {
+  if (!game.value) return
+  try {
     await capyGamesApi.setStatus({
       game_id: game.value.id,
-      status: val as GameStatus,
+      status: newStatus,
       platform: myStatus.value?.platform || 'PC',
       hours_played: myStatus.value?.hours_played || 0,
       rating: myStatus.value?.rating
     })
     await fetchGameDetails()
     await gamesStore.fetchMyList(true)
+  } catch (err) {
+    console.error('Erro ao atualizar status:', err)
   }
 }
 
@@ -621,25 +739,119 @@ onMounted(() => {
   color: var(--text-dim);
 }
 
-.status-selector {
-  margin-top: 8px;
+.detail-actions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
 }
 
-.status-select {
-  background-color: var(--bg-surface-elevated);
-  border: 1px solid var(--color-border);
-  color: var(--color-accent);
-  padding: 8px 12px;
+.btn-list-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
   border-radius: var(--radius-sm);
+  background-color: var(--color-accent);
+  color: #ffffff;
   font-size: 0.82rem;
   font-weight: 600;
+  border: 1px solid var(--color-accent);
   cursor: pointer;
-  outline: none;
-  transition: border-color 0.2s;
+  transition: all 0.2s;
 }
 
-.status-select:focus {
+.btn-list-toggle:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-list-toggle.in-list {
+  background-color: rgba(124, 58, 237, 0.15);
+  color: var(--color-accent);
+  border-color: rgba(124, 58, 237, 0.4);
+}
+
+.btn-list-toggle.in-list:hover:not(:disabled) {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.status-indicator-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--text-main);
+}
+
+.status-indicator-badge.badge-playing {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.status-indicator-badge.badge-completed {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.status-indicator-badge.badge-mastered {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.status-indicator-badge.badge-on_hold {
+  background-color: rgba(249, 115, 22, 0.15);
+  color: #fb923c;
+  border-color: rgba(249, 115, 22, 0.3);
+}
+
+.status-indicator-badge.badge-dropped {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.quick-status-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-quick-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 11px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--text-main);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-quick-status:hover {
+  background-color: var(--bg-surface-hover);
   border-color: var(--color-accent);
+}
+
+.btn-quick-status.danger:hover {
+  border-color: #ef4444;
+  color: #ef4444;
 }
 
 /* Dashboard de Notas */

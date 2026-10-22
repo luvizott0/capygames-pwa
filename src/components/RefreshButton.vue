@@ -26,7 +26,7 @@ defineEmits<{
 .refresh-btn {
   width: 38px;
   height: 38px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -10,15 +10,10 @@
           </div>
           <div class="header-actions">
             <!-- Botão de Recarregar / Sincronizar -->
-            <button
-              type="button"
-              class="btn-icon-link"
-              :class="{ 'is-refreshing': isRefreshing }"
-              title="Recarregar fila de jogos"
-              @click="onForceRefresh"
-            >
-              <RefreshCw :size="18" :class="{ spinning: isRefreshing }" />
-            </button>
+            <RefreshButton
+              :is-refreshing="isRefreshing"
+              @refresh="onForceRefresh"
+            />
             <router-link to="/discover" class="btn-icon-link" title="Buscar Jogos">
               <Plus :size="20" />
             </router-link>
@@ -310,7 +305,6 @@ import {
   Trophy,
   Ban,
   SquarePen,
-  RefreshCw,
   Plus,
   Search
 } from 'lucide-vue-next'
@@ -320,6 +314,7 @@ import GameCard from '@/components/GameCard.vue'
 import GameCarousel from '@/components/GameCarousel.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import GameStatusModal from '@/components/GameStatusModal.vue'
+import RefreshButton from '@/components/RefreshButton.vue'
 
 const router = useRouter()
 const gamesStore = useGamesStore()

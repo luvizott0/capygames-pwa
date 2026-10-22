@@ -12,7 +12,7 @@
 
     <router-link to="/my-list" class="nav-item" active-class="active">
       <Bookmark :size="22" />
-      <span>Minha Lista</span>
+      <span>Lista</span>
     </router-link>
 
     <router-link to="/community" class="nav-item" active-class="active">

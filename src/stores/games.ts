@@ -142,6 +142,44 @@ export const useGamesStore = defineStore('games', () => {
     }
   }
 
+  async function toggleList(gameId: number) {
+    try {
+      const res = await capyGamesApi.toggleList(gameId)
+      const updated = res.data.user_game
+      const idx = myList.value.findIndex(ug => ug.game_id === gameId || ug.game?.id === gameId)
+      if (idx !== -1) {
+        myList.value[idx] = updated
+      } else {
+        myList.value.push(updated)
+      }
+      saveToStorage(MY_LIST_CACHE_KEY, myList.value)
+      return res.data
+    } catch (err) {
+      console.error('Erro ao alternar jogo na lista:', err)
+      throw err
+    }
+  }
+
+  async function reorderList(gameIds: number[]) {
+    try {
+      const res = await capyGamesApi.reorderList(gameIds)
+      const reordered = res.data.data
+      if (reordered && reordered.length > 0) {
+        // Atualiza a lista com a nova ordem
+        const map = new Map<number, CapyUserGame>()
+        for (const item of reordered) {
+          map.set(item.game_id, item)
+        }
+        myList.value = myList.value.map(ug => map.get(ug.game_id) || ug)
+        saveToStorage(MY_LIST_CACHE_KEY, myList.value)
+      }
+      return res.data
+    } catch (err) {
+      console.error('Erro ao salvar nova ordem da lista:', err)
+      throw err
+    }
+  }
+
   function clearDiscoverSearch() {
     discoverSearchQuery.value = ''
     discoverSearchResults.value = []
@@ -152,6 +190,8 @@ export const useGamesStore = defineStore('games', () => {
     myListLoaded,
     isRefreshingMyList,
     fetchMyList,
+    toggleList,
+    reorderList,
 
     popularGames,
     discoverLoaded,

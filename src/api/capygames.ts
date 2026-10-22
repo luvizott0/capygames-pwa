@@ -31,8 +31,11 @@ export interface CapyUserGame {
   user_id: number
   game_id: number
   status: GameStatus
+  in_list?: boolean
+  list_order?: number
   platform?: string
   hours_played: number
+  platform_hours?: Record<string, number>
   rating?: number | null
   review?: string | null
   achievements_earned?: number
@@ -114,12 +117,13 @@ export interface SetGameStatusPayload {
   external_source?: string
   title?: string
   cover_url?: string
-  status: GameStatus
+  status?: GameStatus
   platform?: string
   hours_played?: number
   rating?: number | null
   review?: string | null
   is_favorite?: boolean
+  in_list?: boolean
 }
 
 export const capyGamesApi = {
@@ -147,6 +151,18 @@ export const capyGamesApi = {
 
   setStatus(payload: SetGameStatusPayload) {
     return apiClient.post('/capygames/library/status', payload)
+  },
+
+  toggleList(gameId: number) {
+    return apiClient.post<{ message: string; user_game: CapyUserGame; in_list: boolean }>('/capygames/library/toggle-list', {
+      game_id: gameId
+    })
+  },
+
+  reorderList(gameIds: number[]) {
+    return apiClient.post<{ message: string; data: CapyUserGame[] }>('/capygames/library/reorder', {
+      game_ids: gameIds
+    })
   },
 
   removeGame(id: number) {

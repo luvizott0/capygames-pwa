@@ -38,10 +38,7 @@ const platformsList = [
 
 const statusOptions: { value: GameStatus; label: string; icon: string }[] = [
   { value: 'playing', label: 'Jogando', icon: '🎮' },
-  { value: 'plan_to_play', label: 'A Jogar', icon: '📌' },
   { value: 'completed', label: 'Zerado', icon: '🏁' },
-  { value: 'mastered', label: 'Platinado', icon: '🏆' },
-  { value: 'on_hold', label: 'Em Pausa', icon: '⏸️' },
   { value: 'dropped', label: 'Abandonado', icon: '🛑' }
 ]
 
@@ -51,14 +48,19 @@ watch(
     if (props.isOpen) {
       errorMsg.value = ''
       if (props.userGame) {
-        status.value = props.userGame.status
+        // Se for mastered, mantém; se for on_hold ou plan_to_play, converte para playing ao editar
+        if (props.userGame.status === 'on_hold' || props.userGame.status === 'plan_to_play') {
+          status.value = 'playing'
+        } else {
+          status.value = props.userGame.status
+        }
         platform.value = props.userGame.platform || 'PC'
         hoursPlayed.value = props.userGame.hours_played || 0
         rating.value = props.userGame.rating ?? null
         review.value = props.userGame.review || ''
         isFavorite.value = props.userGame.is_favorite || false
       } else if (props.gameCandidate) {
-        status.value = 'plan_to_play'
+        status.value = 'playing'
         platform.value = props.gameCandidate.platforms?.[0] || 'PC'
         hoursPlayed.value = 0
         rating.value = null
