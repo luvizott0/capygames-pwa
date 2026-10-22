@@ -245,46 +245,50 @@
     </main>
 
     <!-- Modal de Confirmação: Marcar como Zerado -->
-    <div v-if="showCompleteModal && targetUserGame" class="confirm-modal-backdrop" @click.self="showCompleteModal = false">
-      <div class="confirm-modal-card fade-in">
-        <div class="confirm-modal-icon trophy-icon-box">
-          <Trophy :size="28" />
-        </div>
-        <h3 class="confirm-modal-title">Parabéns por Zerar! 🏆</h3>
-        <p class="confirm-modal-desc">
-          Deseja marcar <strong>{{ targetUserGame.game?.title }}</strong> como <strong>Zerado</strong> na sua biblioteca?
-        </p>
-        <div class="confirm-modal-actions">
-          <button type="button" class="btn-secondary" @click="showCompleteModal = false">
-            Cancelar
-          </button>
-          <button type="button" class="btn-primary" :disabled="isSubmittingAction" @click="confirmComplete">
-            {{ isSubmittingAction ? 'Salvando...' : 'Confirmar Zerado' }}
-          </button>
+    <Teleport to="body">
+      <div v-if="showCompleteModal && targetUserGame" class="confirm-modal-backdrop" @click.self="showCompleteModal = false">
+        <div class="confirm-modal-card fade-in">
+          <div class="confirm-modal-icon trophy-icon-box">
+            <Trophy :size="28" />
+          </div>
+          <h3 class="confirm-modal-title">Parabéns por Zerar! 🏆</h3>
+          <p class="confirm-modal-desc">
+            Deseja marcar <strong>{{ targetUserGame.game?.title }}</strong> como <strong>Zerado</strong> na sua biblioteca?
+          </p>
+          <div class="confirm-modal-actions">
+            <button type="button" class="btn-secondary" @click="showCompleteModal = false">
+              Cancelar
+            </button>
+            <button type="button" class="btn-primary" :disabled="isSubmittingAction" @click="confirmComplete">
+              {{ isSubmittingAction ? 'Salvando...' : 'Confirmar Zerado' }}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- Modal de Confirmação: Marcar como Abandonado -->
-    <div v-if="showDropModal && targetUserGame" class="confirm-modal-backdrop" @click.self="showDropModal = false">
-      <div class="confirm-modal-card fade-in">
-        <div class="confirm-modal-icon drop-icon-box">
-          <Ban :size="28" />
-        </div>
-        <h3 class="confirm-modal-title">Abandonar Jogo</h3>
-        <p class="confirm-modal-desc">
-          Deseja marcar <strong>{{ targetUserGame.game?.title }}</strong> como <strong>Abandonado</strong>? Você poderá retomar depois quando quiser.
-        </p>
-        <div class="confirm-modal-actions">
-          <button type="button" class="btn-secondary" @click="showDropModal = false">
-            Cancelar
-          </button>
-          <button type="button" class="btn-primary danger" :disabled="isSubmittingAction" @click="confirmDrop">
-            {{ isSubmittingAction ? 'Salvando...' : 'Confirmar Abandono' }}
-          </button>
+    <Teleport to="body">
+      <div v-if="showDropModal && targetUserGame" class="confirm-modal-backdrop" @click.self="showDropModal = false">
+        <div class="confirm-modal-card fade-in">
+          <div class="confirm-modal-icon drop-icon-box">
+            <Ban :size="28" />
+          </div>
+          <h3 class="confirm-modal-title">Abandonar Jogo</h3>
+          <p class="confirm-modal-desc">
+            Deseja marcar <strong>{{ targetUserGame.game?.title }}</strong> como <strong>Abandonado</strong>? Você poderá retomar depois quando quiser.
+          </p>
+          <div class="confirm-modal-actions">
+            <button type="button" class="btn-secondary" @click="showDropModal = false">
+              Cancelar
+            </button>
+            <button type="button" class="btn-primary danger" :disabled="isSubmittingAction" @click="confirmDrop">
+              {{ isSubmittingAction ? 'Salvando...' : 'Confirmar Abandono' }}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- Modal de Avaliação / Review / Horas -->
     <GameStatusModal
@@ -972,19 +976,27 @@ onMounted(async () => {
 /* Modais de Confirmação */
 .confirm-modal-backdrop {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
   background: rgba(15, 13, 21, 0.85);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 99999;
   padding: 16px;
+  box-sizing: border-box;
 }
 
 .confirm-modal-card {
   width: 100%;
   max-width: 380px;
+  margin: auto;
   background: var(--bg-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);

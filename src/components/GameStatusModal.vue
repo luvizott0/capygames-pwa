@@ -133,7 +133,8 @@ function setScore(score: number) {
 </script>
 
 <template>
-  <div v-if="isOpen" class="modal-backdrop" @click.self="emit('close')">
+  <Teleport to="body">
+    <div v-if="isOpen" class="modal-backdrop" @click.self="emit('close')">
     <div class="modal-container fade-in">
       <div class="modal-header">
         <div class="header-info">
@@ -266,20 +267,27 @@ function setScore(score: number) {
       </div>
     </div>
   </div>
+</Teleport>
 </template>
 
 <style scoped>
 .modal-backdrop {
   position: fixed;
-  inset: 0;
-  background: rgba(18, 16, 14, 0.85);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 13, 21, 0.85);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 99999;
   padding: 16px;
+  box-sizing: border-box;
 }
 
 .modal-container {
@@ -288,7 +296,8 @@ function setScore(score: number) {
   border-radius: var(--radius-md);
   width: 100%;
   max-width: 520px;
-  max-height: 90vh;
+  max-height: 85vh;
+  margin: auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
