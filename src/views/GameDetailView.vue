@@ -39,13 +39,6 @@
 
           <div class="titles-box">
             <h1 class="series-title">{{ game.title }}</h1>
-            <div class="meta-row">
-              <span v-if="game.developer" class="meta-item">{{ game.developer }}</span>
-              <span v-if="game.developer && releaseDateText" class="meta-bullet">•</span>
-              <span v-if="releaseDateText" class="meta-item mono">{{ releaseDateText }}</span>
-              <span v-if="gameSinceText" class="meta-bullet">•</span>
-              <span v-if="gameSinceText" class="meta-item mono">{{ gameSinceText }}</span>
-            </div>
 
             <!-- Botões de Ação na Lista & Status -->
             <div class="detail-actions-bar">
@@ -191,10 +184,26 @@
           </div>
         </div>
 
-        <!-- Sinopse -->
-        <div v-if="game.summary" class="detail-section overview-section">
-          <h3 class="section-title">Sinopse</h3>
-          <p class="overview-text">{{ game.summary }}</p>
+        <!-- Sinopse & Informações de Lançamento -->
+        <div v-if="game.summary || formattedReleaseDate" class="detail-section overview-section">
+          <template v-if="game.summary">
+            <h3 class="section-title">Sinopse</h3>
+            <p class="overview-text">{{ game.summary }}</p>
+          </template>
+
+          <!-- Data de Lançamento e Desenvolvedora abaixo da Sinopse -->
+          <div v-if="formattedReleaseDate || game.developer" class="meta-details-footer">
+            <div v-if="formattedReleaseDate" class="meta-detail-row">
+              <Calendar :size="15" class="meta-detail-icon" />
+              <span class="meta-detail-label">Data de Lançamento:</span>
+              <span class="meta-detail-value mono">{{ formattedReleaseDate }}</span>
+            </div>
+            <div v-if="game.developer" class="meta-detail-row">
+              <Building2 :size="15" class="meta-detail-icon" />
+              <span class="meta-detail-label">Desenvolvedora:</span>
+              <span class="meta-detail-value">{{ game.developer }}</span>
+            </div>
+          </div>
         </div>
 
         <!-- Plataformas Disponíveis para Jogar -->
@@ -360,7 +369,9 @@ import {
   Plus,
   BookmarkCheck,
   Play,
-  Ban
+  Ban,
+  Calendar,
+  Building2
 } from 'lucide-vue-next'
 import { capyGamesApi, type CapyGame, type CapyUserGame } from '@/api/capygames'
 import { useGamesStore } from '@/stores/games'
@@ -391,27 +402,27 @@ const housematesWithReviews = computed(() => {
   return housemates.value.filter(hm => hm.review && hm.user.id !== myStatus.value?.user_id)
 })
 
-const releaseDateText = computed(() => {
-  const raw = game.value?.raw_data?.release_date || game.value?.release_date
+const formattedReleaseDate = computed(() => {
+  const rawData = game.value?.raw_data?.release_date as any
+  const raw = (typeof rawData === 'object' && rawData !== null)
+    ? (rawData.date || '')
+    : (rawData || game.value?.release_date)
+
   if (!raw) return ''
+  const str = String(raw).trim()
+  if (!str) return ''
+
   try {
-    const d = new Date(raw)
+    const d = new Date(str)
     if (!isNaN(d.getTime())) {
-      return `Lançamento: ${d.toLocaleDateString('pt-BR')}`
+      const day = String(d.getUTCDate()).padStart(2, '0')
+      const month = String(d.getUTCMonth() + 1).padStart(2, '0')
+      const year = d.getUTCFullYear()
+      return `${day}/${month}/${year}`
     }
   } catch {}
-  return `Lançamento: ${raw}`
-})
 
-const gameSinceText = computed(() => {
-  const dateStr = myStatus.value?.started_at || myStatus.value?.created_at
-  if (!dateStr || !myStatus.value) return null
-  try {
-    const d = new Date(dateStr)
-    return `Na biblioteca desde: ${d.toLocaleDateString('pt-BR')}`
-  } catch {
-    return null
-  }
+  return str
 })
 
 const isInList = computed(() => {
@@ -940,6 +951,38 @@ onMounted(() => {
   font-size: 0.88rem;
   color: var(--text-muted);
   line-height: 1.6;
+}
+
+.meta-details-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.meta-detail-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.meta-detail-icon {
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.meta-detail-label {
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+.meta-detail-value {
+  color: var(--text-main);
+  font-weight: 600;
 }
 
 /* Progresso e Conquistas */

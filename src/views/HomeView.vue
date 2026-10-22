@@ -30,7 +30,7 @@
       </div>
 
       <!-- Empty State quando não há jogos recentes -->
-      <div v-else-if="currentlyPlayingGames.length === 0 && selectedCategory === 'all'" class="empty-state fade-in">
+      <div v-else-if="currentlyPlayingGames.length === 0" class="empty-state fade-in">
         <div class="empty-icon-box">
           <Gamepad2 :size="48" class="empty-icon" />
         </div>
@@ -44,8 +44,8 @@
         </router-link>
       </div>
 
-      <!-- Up Next List (Últimos 10 jogos jogados por data com progresso visual) -->
-      <section v-else-if="selectedCategory === 'all'" class="up-next-section fade-in">
+      <!-- Up Next List (Últimos 5 jogos em andamento com progresso visual) -->
+      <section v-else class="up-next-section fade-in">
         <div class="up-next-grid">
           <div
             v-for="item in currentlyPlayingGames"
@@ -145,7 +145,6 @@
                   title="Ver detalhes completos do jogo"
                   @click="goToGame(item.game?.id || item.game_id)"
                 >
-                  <span>Ver Jogo</span>
                   <ChevronRight :size="16" />
                 </button>
               </div>
@@ -154,87 +153,22 @@
         </div>
       </section>
 
-      <!-- Barra Rápida de Categorias -->
-      <div class="categories-bar-wrapper">
-        <div class="genres-scroll-bar">
-          <button
-            v-for="cat in categories"
-            :key="cat.key"
-            type="button"
-            class="genre-pill"
-            :class="{ active: selectedCategory === cat.key }"
-            @click="selectedCategory = cat.key"
-          >
-            {{ cat.label }}
-          </button>
-        </div>
-      </div>
-
-      <!-- Grade filtrada por categoria -->
-      <section v-if="selectedCategory !== 'all'" class="filtered-category-section fade-in">
-        <div class="section-header">
-          <h2 class="section-title mono">{{ categoryTitle }}</h2>
-        </div>
-
-        <div v-if="filteredGames.length > 0" class="category-grid">
-          <GameCard
-            v-for="(item, idx) in filteredGames"
-            :key="item.id || item.external_id || idx"
-            :game="item"
-          />
-        </div>
-        <div v-else class="empty-state">
-          <p class="empty-desc">Nenhum jogo encontrado nessa categoria no momento.</p>
-        </div>
-      </section>
-
-      <!-- Carrosséis de Exploração (quando "Todos" estiver selecionado) -->
-      <div v-else class="carousels-wrapper">
-        <!-- 1. Em Alta Esta Semana -->
-        <GameCarousel
-          title="Em Alta Esta Semana"
-          :items="trendingGames.slice(0, 10)"
-          view-all-route="/collection/popular"
-        />
-
-        <!-- 2. Jogados pela Comunidade -->
+      <!-- Carrosséis da Home: apenas "Jogados pelos amigos" e "Mais bem avaliados" -->
+      <div class="carousels-wrapper">
+        <!-- 1. Jogados pelos amigos -->
         <GameCarousel
           v-if="communityGames.length > 0"
-          title="Jogados pela Comunidade"
+          title="Jogados pelos amigos"
           :items="communityGames.slice(0, 10)"
-          view-all-route="/collection/community"
+          view-all-route="/community"
         />
 
-        <!-- 3. Mais Bem Avaliados -->
+        <!-- 2. Mais Bem Avaliados -->
         <GameCarousel
           v-if="topRatedGames.length > 0"
-          title="Mais Bem Avaliados"
+          title="Mais bem avaliados"
           :items="topRatedGames.slice(0, 10)"
-          view-all-route="/collection/top-rated"
-        />
-
-        <!-- 4. Mundos de RPG -->
-        <GameCarousel
-          v-if="rpgGames.length > 0"
-          title="Aventuras & RPGs"
-          :items="rpgGames.slice(0, 10)"
-          view-all-route="/collection/genre-rpg"
-        />
-
-        <!-- 5. Ação & Tiro -->
-        <GameCarousel
-          v-if="actionGames.length > 0"
-          title="Ação & Sobrevivência"
-          :items="actionGames.slice(0, 10)"
-          view-all-route="/collection/genre-action"
-        />
-
-        <!-- 6. Destaques Indie -->
-        <GameCarousel
-          v-if="indieGames.length > 0"
-          title="Jóias Indie"
-          :items="indieGames.slice(0, 10)"
-          view-all-route="/collection/genre-indie"
+          view-all-route="/discover"
         />
       </div>
     </main>
@@ -310,7 +244,6 @@ import {
 } from 'lucide-vue-next'
 import { useGamesStore } from '@/stores/games'
 import { capyGamesApi, type CapyUserGame } from '@/api/capygames'
-import GameCard from '@/components/GameCard.vue'
 import GameCarousel from '@/components/GameCarousel.vue'
 import PlatformIcon from '@/components/PlatformIcon.vue'
 import GameStatusModal from '@/components/GameStatusModal.vue'
@@ -320,7 +253,6 @@ const router = useRouter()
 const gamesStore = useGamesStore()
 
 const isRefreshing = ref(false)
-const selectedCategory = ref('all')
 
 // Modais de ação rápida
 const targetUserGame = ref<CapyUserGame | null>(null)
@@ -332,49 +264,21 @@ const isSubmittingAction = ref(false)
 const isStatusModalOpen = ref(false)
 const selectedGameForStatus = ref<CapyUserGame | null>(null)
 
-const categories = [
-  { key: 'all', label: 'Todos' },
-  { key: 'rpg', label: 'RPGs' },
-  { key: 'action', label: 'Ação' },
-  { key: 'adventure', label: 'Aventura' },
-  { key: 'shooter', label: 'Tiro' },
-  { key: 'strategy', label: 'Estratégia' },
-  { key: 'indie', label: 'Indie' },
-  { key: 'horror', label: 'Terror' }
-]
-
-const categoryTitle = computed(() => {
-  const cat = categories.find(c => c.key === selectedCategory.value)
-  return cat ? cat.label : 'Jogos'
-})
-
-// Últimos 10 jogos jogados por data com progresso
+// Últimos 5 jogos que o usuário realmente está jogando (apenas status === 'playing')
 const currentlyPlayingGames = computed(() => {
   const list = gamesStore.myList || []
-  // Preferencialmente jogos em andamento (playing) ou com horas jogadas, e outros da biblioteca
-  const playing = list.filter(ug => ug.status === 'playing')
-  const others = list.filter(ug => ug.status !== 'playing' && ug.status !== 'dropped')
-
-  const combined = [...playing, ...others].filter(
-    (item, index, self) => index === self.findIndex(t => (t.game?.id || t.game_id) === (item.game?.id || item.game_id))
-  )
-
-  return combined
+  return list
+    .filter(ug => ug.status === 'playing')
     .slice()
     .sort((a, b) => {
       const dateA = new Date(a.updated_at || a.created_at || 0).getTime()
       const dateB = new Date(b.updated_at || b.created_at || 0).getTime()
       return dateB - dateA
     })
-    .slice(0, 10)
+    .slice(0, 5)
 })
 
-// Jogos populares
-const trendingGames = computed(() => {
-  return gamesStore.popularGames
-})
-
-// Jogos da comunidade
+// 1. Jogados pelos amigos (atividades da comunidade)
 const communityGames = computed(() => {
   const map = new Map<number, any>()
   for (const act of gamesStore.communityActivities) {
@@ -385,45 +289,13 @@ const communityGames = computed(() => {
   return Array.from(map.values())
 })
 
-// Jogos bem avaliados
+// 2. Mais bem avaliados
 const topRatedGames = computed(() => {
   const rated = gamesStore.myList.filter(ug => ug.rating && ug.rating >= 8)
   if (rated.length > 0) {
     return rated.map(ug => ug.game)
   }
   return gamesStore.popularGames.slice().reverse()
-})
-
-// Gêneros filtrados
-const rpgGames = computed(() => {
-  return gamesStore.popularGames.filter(g =>
-    (g.genres || []).some(gen => /rpg|role-playing/i.test(gen)) ||
-    (g.summary || '').toLowerCase().includes('rpg')
-  )
-})
-
-const actionGames = computed(() => {
-  return gamesStore.popularGames.filter(g =>
-    (g.genres || []).some(gen => /action|ação|shooter|tiro/i.test(gen)) ||
-    (g.summary || '').toLowerCase().includes('action')
-  )
-})
-
-const indieGames = computed(() => {
-  return gamesStore.popularGames.filter(g =>
-    (g.genres || []).some(gen => /indie/i.test(gen)) ||
-    (g.summary || '').toLowerCase().includes('indie')
-  )
-})
-
-const filteredGames = computed(() => {
-  if (selectedCategory.value === 'all') return []
-  const cat = selectedCategory.value.toLowerCase()
-  return gamesStore.popularGames.filter(g => {
-    const genres = (g.genres || []).map(x => x.toLowerCase())
-    const summary = (g.summary || '').toLowerCase()
-    return genres.some(gn => gn.includes(cat)) || summary.includes(cat)
-  })
 })
 
 function goToGame(id?: number) {
