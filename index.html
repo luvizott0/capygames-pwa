@@ -2,23 +2,143 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8">
-    <link rel="icon" type="image/svg+xml" href="/capy-games-icon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>CapyGames 🎮 — Games da Capihouse</title>
     
     <!-- PWA & Mobile Meta Tags -->
-    <meta name="theme-color" content="#f5c518">
+    <meta name="theme-color" content="#0f0d15">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="CapyGames">
     
+    <!-- Favicon & Touch Icons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
     <!-- Google Fonts: Space Mono & Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+    <style>
+      /* Previne tela branca ou piscadas durante inicialização */
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #0f0d15;
+        overflow-x: hidden;
+      }
+
+      /* Splash screen nativa imediata CapyGames */
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: #0f0d15;
+        z-index: 99999;
+        font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        padding: env(safe-area-inset-top, 20px) 20px env(safe-area-inset-bottom, 20px) 20px;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      .splash-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+
+      .splash-logo-container {
+        position: relative;
+        margin-bottom: 22px;
+      }
+
+      .splash-logo {
+        width: 96px;
+        height: 96px;
+        object-fit: contain;
+        animation: splash-pulse 2s ease-in-out infinite alternate;
+      }
+
+      .splash-title {
+        font-family: 'Space Mono', monospace;
+        font-size: 26px;
+        font-weight: 700;
+        color: #f3f0f8;
+        margin: 0 0 6px 0;
+        letter-spacing: -0.5px;
+      }
+
+      .splash-subtitle {
+        font-size: 13px;
+        font-weight: 500;
+        color: #a39bb5;
+        margin: 0 0 28px 0;
+        letter-spacing: 0.2px;
+      }
+
+      /* Barra de carregamento suave com a cor primária roxa */
+      .splash-loader-track {
+        width: 130px;
+        height: 4px;
+        background-color: rgba(124, 58, 237, 0.2);
+        border-radius: 2px;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .splash-loader-bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 40%;
+        background: linear-gradient(90deg, #7c3aed, #c084fc);
+        border-radius: 2px;
+        animation: splash-loading 1.4s ease-in-out infinite;
+      }
+
+      @keyframes splash-pulse {
+        0% {
+          transform: scale(0.96);
+          filter: drop-shadow(0 4px 14px rgba(124, 58, 237, 0.3));
+        }
+        100% {
+          transform: scale(1.02);
+          filter: drop-shadow(0 10px 28px rgba(124, 58, 237, 0.6));
+        }
+      }
+
+      @keyframes splash-loading {
+        0% { left: -40%; width: 30%; }
+        50% { left: 35%; width: 45%; }
+        100% { left: 100%; width: 30%; }
+      }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <div id="app-splash">
+        <div class="splash-content">
+          <div class="splash-logo-container">
+            <img src="/web-app-manifest-192x192.png" alt="CapyGames" class="splash-logo" width="96" height="96" />
+          </div>
+          <h1 class="splash-title">CapyGames</h1>
+          <p class="splash-subtitle">O Gaming Backlog & Tracker da Capihouse</p>
+          <div class="splash-loader-track">
+            <div class="splash-loader-bar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

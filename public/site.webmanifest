@@ -1,0 +1,21 @@
+{
+  "name": "CapyGames",
+  "short_name": "CapyGames",
+  "icons": [
+    {
+      "src": "/web-app-manifest-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/web-app-manifest-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "theme_color": "#7c3aed",
+  "background_color": "#0f0d15",
+  "display": "standalone"
+}

@@ -2,8 +2,9 @@
   <div class="search-page container fade-in">
     <header class="page-header">
       <div class="header-top">
-        <h1 class="header-title mono">Buscar no Catálogo</h1>
+        <h1 class="header-title mono">Buscar</h1>
         <RefreshButton
+          v-if="!searchQuery.trim()"
           :is-refreshing="gamesStore.isRefreshingDiscover"
           @refresh="onForceRefresh"
         />
@@ -106,9 +107,9 @@
       </div>
 
       <!-- Loading State -->
-      <div v-if="isSearching" class="loading-state">
+      <div v-if="isSearching || (gamesStore.isRefreshingDiscover && gamesStore.popularGames.length === 0)" class="loading-state">
         <div class="spinner"></div>
-        <p>Buscando jogos no acervo...</p>
+        <p>{{ isSearching ? 'Buscando jogos no acervo...' : 'Carregando catálogo...' }}</p>
       </div>
 
       <!-- Grade de Jogos (Padrão ou Compacta 4x4) -->
@@ -270,13 +271,22 @@ onMounted(async () => {
 }
 
 .page-header {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 12px;
 }
 
 .header-title {
   font-size: 1.25rem;
   color: var(--text-main);
-  margin-bottom: 12px;
+  margin-bottom: 0;
+  line-height: 1.2;
 }
 
 /* Barra de Busca */

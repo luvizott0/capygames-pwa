@@ -18,12 +18,24 @@ export default defineConfig({
         short_name: 'CapyGames',
         description: 'Organize sua biblioteca de jogos, avalie e veja o que os moradores da Capihouse estão jogando',
         theme_color: '#7c3aed',
-        background_color: '#0c0a14',
+        background_color: '#0f0d15',
         display: 'standalone',
         orientation: 'portrait-primary',
         start_url: '/',
         scope: '/',
         icons: [
+          {
+            src: '/web-app-manifest-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable any'
+          },
+          {
+            src: '/web-app-manifest-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable any'
+          },
           {
             src: '/capy-games-icon.svg',
             sizes: 'any',
