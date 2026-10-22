@@ -31,17 +31,6 @@
           <span class="user-username">@{{ profile.user.username }}</span>
         </div>
 
-        <!-- Time-Spent Counter (Estilo CapyShowTime) -->
-        <div class="time-spent-banner">
-          <Clock :size="24" class="clock-icon" />
-          <div class="time-spent-info">
-            <span class="time-spent-label">Tempo gasto jogando</span>
-            <span class="time-spent-value mono">
-              {{ formatTimeSpent(profile.stats.total_hours) }}
-            </span>
-          </div>
-        </div>
-
         <!-- Stats Grid -->
         <div class="stats-grid">
           <div class="stat-box">
@@ -365,7 +354,6 @@
 import { ref, computed, watch, onMounted, onActivated } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  Clock,
   LogOut,
   ArrowLeft,
   Bookmark,
@@ -435,12 +423,6 @@ const completedGames = computed(() => {
 const droppedGames = computed(() => {
   return gamesList.value.filter((item: any) => item.status === 'dropped')
 })
-
-function formatTimeSpent(totalHours = 0): string {
-  const days = Math.floor(totalHours / 24)
-  const hours = Math.round(totalHours % 24)
-  return `${days}d ${hours}h`
-}
 
 function goBack() {
   if (window.history.length > 1) {

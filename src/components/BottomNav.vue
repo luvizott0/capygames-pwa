@@ -39,7 +39,7 @@ import { Gamepad2, Search, Bookmark, Users, User as UserIcon } from 'lucide-vue-
   right: 0;
   height: calc(64px + var(--safe-bottom));
   padding-bottom: var(--safe-bottom);
-  background-color: rgba(22, 19, 17, 0.95);
+  background-color: rgba(24, 21, 35, 0.95);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-top: 1px solid var(--color-border);

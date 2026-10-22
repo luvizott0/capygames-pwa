@@ -1,178 +1,181 @@
 <template>
   <div class="home-view fade-in">
-    <!-- Hero Banner Estilo CapyFlix -->
-    <div v-if="heroGame" class="hero-wrapper">
-      <div
-        class="hero-banner"
-        :style="{ backgroundImage: `url(${heroGame.banner_url || heroGame.cover_url})` }"
-      >
-        <div class="hero-overlay"></div>
-        <div class="hero-content container">
-          <div class="hero-meta-top">
-            <span v-if="heroGameRating" class="badge-rating mono">
-              ★ {{ Number(heroGameRating).toFixed(1) }}
-            </span>
-            <!-- Apenas Ícone da Plataforma (sem label de texto) -->
-            <span class="platform-icon-pill" :title="heroGamePlatform">
-              <PlatformIcon :platform="heroGamePlatform" :size="16" />
-            </span>
-            <span v-if="heroGame.developer" class="meta-text">{{ heroGame.developer }}</span>
-            <span v-if="heroGame.genres && heroGame.genres.length > 0" class="meta-dot">•</span>
-            <span v-if="heroGame.genres && heroGame.genres.length > 0" class="meta-text">{{ heroGame.genres[0] }}</span>
+    <!-- Header estilo CapyShowTime -->
+    <header class="page-header">
+      <div class="container">
+        <div class="header-content">
+          <div class="header-title-box">
+            <h1 class="header-title mono">Para Jogar</h1>
+            <p class="header-subtitle">Seus jogos recentes e em andamento</p>
           </div>
-
-          <h1 class="hero-title">{{ heroGame.title }}</h1>
-          <p class="hero-synopsis">{{ heroGame.summary || 'Acompanhe seu progresso, registre suas conquistas e compartilhe sua jogatina com a comunidade.' }}</p>
-
-          <div class="hero-actions">
-            <router-link :to="`/game/${heroGame.id}`" class="btn-primary">
-              <Gamepad2 :size="16" />
-              <span>Ver Detalhes</span>
-            </router-link>
-
+          <div class="header-actions">
+            <!-- Botão de Recarregar / Sincronizar -->
             <button
               type="button"
-              class="btn-secondary"
-              @click="toggleFavoriteHero"
+              class="btn-icon-link"
+              :class="{ 'is-refreshing': isRefreshing }"
+              title="Recarregar fila de jogos"
+              @click="onForceRefresh"
             >
-              <Bookmark :size="16" :fill="isHeroInLibrary ? 'currentColor' : 'none'" />
-              <span>{{ isHeroInLibrary ? 'Na Minha Lista' : 'Adicionar à Lista' }}</span>
+              <RefreshCw :size="18" :class="{ spinning: isRefreshing }" />
             </button>
+            <router-link to="/discover" class="btn-icon-link" title="Buscar Jogos">
+              <Plus :size="20" />
+            </router-link>
           </div>
         </div>
       </div>
-    </div>
+    </header>
 
-    <!-- Barra Rápida de Categorias no Estilo CapyFlix / CapyShowTime -->
-    <div class="container categories-bar-wrapper">
-      <div class="genres-scroll-bar">
-        <button
-          v-for="cat in categories"
-          :key="cat.key"
-          type="button"
-          class="genre-pill"
-          :class="{ active: selectedCategory === cat.key }"
-          @click="selectedCategory = cat.key"
-        >
-          {{ cat.label }}
-        </button>
+    <main class="container page-body">
+      <!-- Loading State Inicial -->
+      <div v-if="!gamesStore.myListLoaded && gamesStore.isRefreshingMyList && currentlyPlayingGames.length === 0" class="loading-state">
+        <div class="spinner"></div>
+        <p>Carregando sua fila de jogos...</p>
       </div>
-    </div>
 
-    <div class="container page-content">
-      <!-- Continuar Jogando (Últimos 5 jogos jogados por data) -->
-      <section v-if="currentlyPlayingGames.length > 0 && selectedCategory === 'all'" class="continue-section">
-        <div class="section-header">
-          <h2 class="section-title mono">Continuar Jogando</h2>
+      <!-- Empty State quando não há jogos recentes -->
+      <div v-else-if="currentlyPlayingGames.length === 0 && selectedCategory === 'all'" class="empty-state fade-in">
+        <div class="empty-icon-box">
+          <Gamepad2 :size="48" class="empty-icon" />
         </div>
+        <h3 class="empty-title">Nenhum jogo em andamento!</h3>
+        <p class="empty-desc">
+          Você está em dia com seus jogos ou ainda não adicionou nenhum título para acompanhar o seu progresso.
+        </p>
+        <router-link to="/discover" class="btn-primary">
+          <Search :size="18" />
+          <span>Explorar Jogos</span>
+        </router-link>
+      </div>
 
-        <div class="continue-wrapper">
-          <button
-            v-if="canScrollContinueLeft"
-            type="button"
-            class="nav-btn prev"
-            aria-label="Anterior"
-            @click="scrollContinue(-1)"
+      <!-- Up Next List (Últimos 10 jogos jogados por data com progresso visual) -->
+      <section v-else-if="selectedCategory === 'all'" class="up-next-section fade-in">
+        <div class="up-next-grid">
+          <div
+            v-for="item in currentlyPlayingGames"
+            :key="item.id"
+            class="up-next-card"
           >
-            <ChevronLeft :size="18" />
-          </button>
+            <!-- Capa do Jogo na Esquerda -->
+            <div class="card-poster" @click="goToGame(item.game?.id || item.game_id)">
+              <img
+                v-if="item.game?.cover_url || item.game?.banner_url"
+                :src="item.game?.cover_url || item.game?.banner_url"
+                :alt="item.game?.title"
+                class="poster-img"
+                loading="lazy"
+              />
+              <div v-else class="poster-placeholder">
+                <Gamepad2 :size="32" />
+              </div>
+              <div v-if="item.rating" class="rating-badge-mini mono">
+                ★ {{ Number(item.rating).toFixed(1) }}
+              </div>
+            </div>
 
-          <div ref="continueTrackRef" class="continue-track" @scroll="onContinueTrackScroll">
-            <div
-              v-for="item in currentlyPlayingGames"
-              :key="item.id"
-              class="continue-card"
-            >
-              <div class="continue-thumb-wrapper" @click="goToGame(item.game?.id || item.game_id)">
-                <img
-                  :src="item.game?.banner_url || item.game?.cover_url"
-                  :alt="item.game?.title"
-                  class="continue-thumb"
-                  loading="lazy"
-                />
-                <div class="play-overlay-mini">
-                  <Play :size="18" fill="currentColor" />
+            <!-- Detalhes do Jogo na Direita -->
+            <div class="card-details">
+              <div class="game-top-row">
+                <div class="game-title-box">
+                  <h3 class="game-title" @click="goToGame(item.game?.id || item.game_id)">
+                    {{ item.game?.title }}
+                  </h3>
+                  <div class="game-meta-row">
+                    <!-- Ícone com cor respectiva da marca -->
+                    <span class="platform-icon-pill" :title="item.platform || 'Multiplataforma'">
+                      <PlatformIcon :platform="item.platform || 'PC'" :size="15" />
+                    </span>
+                    <span v-if="item.hours_played > 0" class="meta-dot">•</span>
+                    <span v-if="item.hours_played > 0" class="hours-text mono">{{ item.hours_played }}h jogadas</span>
+                    <span v-if="item.status === 'completed'" class="status-pill-mini completed mono">Zerado</span>
+                    <span v-else-if="item.status === 'mastered'" class="status-pill-mini mastered mono">Platinado</span>
+                  </div>
                 </div>
-                <div class="continue-progress-bar">
+              </div>
+
+              <!-- Barra de Progresso Visual do Jogo -->
+              <div class="progress-container">
+                <div class="progress-bar-bg">
                   <div
-                    class="continue-progress-fill"
+                    class="progress-bar-fill"
                     :style="{ width: `${getProgressPercent(item)}%` }"
                   ></div>
                 </div>
+                <div class="progress-labels mono">
+                  <span>{{ getProgressLabel(item) }}</span>
+                  <span class="progress-percent">{{ getProgressPercent(item) }}%</span>
+                </div>
               </div>
 
-              <div class="continue-info">
-                <h4 class="continue-title" @click="goToGame(item.game?.id || item.game_id)">
-                  {{ item.game?.title }}
-                </h4>
+              <!-- Ações no Card com Ícones -->
+              <div class="card-actions">
+                <!-- 1. Zerar jogo (Trophy) com modal de confirmação -->
+                <button
+                  type="button"
+                  class="check-action-btn"
+                  title="Marcar como Zerado"
+                  @click="promptCompleteGame(item)"
+                >
+                  <Trophy :size="16" />
+                  <span>Zerei</span>
+                </button>
 
-                <!-- Metadados com apenas ÍCONE da plataforma -->
-                <div class="continue-meta-row">
-                  <span class="platform-icon-wrap" :title="item.platform || 'PC'">
-                    <PlatformIcon :platform="item.platform || 'PC'" :size="14" />
-                  </span>
-                  <span v-if="item.hours_played > 0" class="meta-dot">•</span>
-                  <span v-if="item.hours_played > 0" class="hours-text mono">{{ item.hours_played }}h</span>
-                </div>
+                <!-- 2. Abandonar jogo (Ban) com modal de confirmação -->
+                <button
+                  type="button"
+                  class="action-btn-pill drop-pill"
+                  title="Marcar como Abandonado"
+                  @click="promptDropGame(item)"
+                >
+                  <Ban :size="15" />
+                  <span>Abandonar</span>
+                </button>
 
-                <!-- Botões de Ação com Apenas ÍCONES -->
-                <div class="card-icon-actions">
-                  <!-- 1. Ir aos detalhes -->
-                  <button
-                    type="button"
-                    class="action-icon-btn"
-                    title="Ver detalhes do jogo"
-                    @click="goToGame(item.game?.id || item.game_id)"
-                  >
-                    <Info :size="14" />
-                  </button>
+                <!-- 3. Review: Ícone de texto e escrita (SquarePen) -->
+                <button
+                  type="button"
+                  class="action-btn-pill review-pill"
+                  title="Escrever Análise / Review"
+                  @click="openReviewModal(item)"
+                >
+                  <SquarePen :size="15" />
+                  <span>Review</span>
+                </button>
 
-                  <!-- 2. Marcar como Zerado -->
-                  <button
-                    type="button"
-                    class="action-icon-btn complete-btn"
-                    title="Marcar como Zerado"
-                    @click="promptCompleteGame(item)"
-                  >
-                    <Trophy :size="14" />
-                  </button>
-
-                  <!-- 3. Marcar como Abandonado -->
-                  <button
-                    type="button"
-                    class="action-icon-btn drop-btn"
-                    title="Marcar como Abandonado"
-                    @click="promptDropGame(item)"
-                  >
-                    <Ban :size="14" />
-                  </button>
-
-                  <!-- 4. Fazer Review / Avaliar -->
-                  <button
-                    type="button"
-                    class="action-icon-btn review-btn"
-                    title="Avaliar e escrever análise"
-                    @click="openReviewModal(item)"
-                  >
-                    <Star :size="14" />
-                  </button>
-                </div>
+                <!-- 4. Ver Detalhes do Jogo -->
+                <button
+                  type="button"
+                  class="details-btn"
+                  title="Ver detalhes completos do jogo"
+                  @click="goToGame(item.game?.id || item.game_id)"
+                >
+                  <span>Ver Jogo</span>
+                  <ChevronRight :size="16" />
+                </button>
               </div>
             </div>
           </div>
-
-          <button
-            type="button"
-            class="nav-btn next"
-            aria-label="Próximo"
-            @click="scrollContinue(1)"
-          >
-            <ChevronRight :size="18" />
-          </button>
         </div>
       </section>
 
-      <!-- Grade filtrada quando uma categoria específica for selecionada -->
+      <!-- Barra Rápida de Categorias -->
+      <div class="categories-bar-wrapper">
+        <div class="genres-scroll-bar">
+          <button
+            v-for="cat in categories"
+            :key="cat.key"
+            type="button"
+            class="genre-pill"
+            :class="{ active: selectedCategory === cat.key }"
+            @click="selectedCategory = cat.key"
+          >
+            {{ cat.label }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Grade filtrada por categoria -->
       <section v-if="selectedCategory !== 'all'" class="filtered-category-section fade-in">
         <div class="section-header">
           <h2 class="section-title mono">{{ categoryTitle }}</h2>
@@ -190,16 +193,16 @@
         </div>
       </section>
 
-      <!-- Carrosséis quando "Todos" estiver selecionado -->
+      <!-- Carrosséis de Exploração (quando "Todos" estiver selecionado) -->
       <div v-else class="carousels-wrapper">
-        <!-- 1. Em Alta no Momento -->
+        <!-- 1. Em Alta Esta Semana -->
         <GameCarousel
           title="Em Alta Esta Semana"
           :items="trendingGames.slice(0, 10)"
           view-all-route="/collection/popular"
         />
 
-        <!-- 2. O que a Capihouse está jogando -->
+        <!-- 2. Jogados pela Comunidade -->
         <GameCarousel
           v-if="communityGames.length > 0"
           title="Jogados pela Comunidade"
@@ -239,7 +242,7 @@
           view-all-route="/collection/genre-indie"
         />
       </div>
-    </div>
+    </main>
 
     <!-- Modal de Confirmação: Marcar como Zerado -->
     <div v-if="showCompleteModal && targetUserGame" class="confirm-modal-backdrop" @click.self="showCompleteModal = false">
@@ -299,14 +302,13 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   Gamepad2,
-  Bookmark,
-  ChevronLeft,
   ChevronRight,
-  Play,
-  Info,
   Trophy,
   Ban,
-  Star
+  SquarePen,
+  RefreshCw,
+  Plus,
+  Search
 } from 'lucide-vue-next'
 import { useGamesStore } from '@/stores/games'
 import { capyGamesApi, type CapyUserGame } from '@/api/capygames'
@@ -318,9 +320,8 @@ import GameStatusModal from '@/components/GameStatusModal.vue'
 const router = useRouter()
 const gamesStore = useGamesStore()
 
+const isRefreshing = ref(false)
 const selectedCategory = ref('all')
-const continueTrackRef = ref<HTMLElement | null>(null)
-const canScrollContinueLeft = ref(false)
 
 // Modais de ação rápida
 const targetUserGame = ref<CapyUserGame | null>(null)
@@ -348,17 +349,25 @@ const categoryTitle = computed(() => {
   return cat ? cat.label : 'Jogos'
 })
 
-// Últimos 5 jogos jogados na listagem por data
+// Últimos 10 jogos jogados por data com progresso
 const currentlyPlayingGames = computed(() => {
-  return gamesStore.myList
-    .filter(ug => ug.status === 'playing')
+  const list = gamesStore.myList || []
+  // Preferencialmente jogos em andamento (playing) ou com horas jogadas, e outros da biblioteca
+  const playing = list.filter(ug => ug.status === 'playing')
+  const others = list.filter(ug => ug.status !== 'playing' && ug.status !== 'dropped')
+
+  const combined = [...playing, ...others].filter(
+    (item, index, self) => index === self.findIndex(t => (t.game?.id || t.game_id) === (item.game?.id || item.game_id))
+  )
+
+  return combined
     .slice()
     .sort((a, b) => {
       const dateA = new Date(a.updated_at || a.created_at || 0).getTime()
       const dateB = new Date(b.updated_at || b.created_at || 0).getTime()
       return dateB - dateA
     })
-    .slice(0, 5)
+    .slice(0, 10)
 })
 
 // Jogos populares
@@ -418,45 +427,9 @@ const filteredGames = computed(() => {
   })
 })
 
-// Destaque do Hero Banner
-const heroGame = computed<any>(() => {
-  if (currentlyPlayingGames.value.length > 0) {
-    return currentlyPlayingGames.value[0].game
-  }
-  if (gamesStore.popularGames.length > 0) {
-    return gamesStore.popularGames[0]
-  }
-  return null
-})
-
-const heroGameRating = computed(() => {
-  if (!heroGame.value) return 9.2
-  const inList = gamesStore.myList.find(ug => ug.game_id === heroGame.value.id || ug.game?.id === heroGame.value.id)
-  return inList?.rating || 9.2
-})
-
-const heroGamePlatform = computed(() => {
-  if (!heroGame.value) return 'PC'
-  if (heroGame.value.platforms && heroGame.value.platforms.length > 0) {
-    return heroGame.value.platforms[0]
-  }
-  return 'PC'
-})
-
-const isHeroInLibrary = computed(() => {
-  if (!heroGame.value) return false
-  return gamesStore.myList.some(ug => ug.game_id === heroGame.value.id || ug.game?.id === heroGame.value.id)
-})
-
-function goToGame(id: number) {
+function goToGame(id?: number) {
   if (id) {
     router.push(`/game/${id}`)
-  }
-}
-
-function toggleFavoriteHero() {
-  if (heroGame.value) {
-    router.push(`/game/${heroGame.value.id}`)
   }
 }
 
@@ -526,28 +499,53 @@ async function handleStatusRemoved() {
 }
 
 function getProgressPercent(item: CapyUserGame): number {
-  if (item.achievements_total && item.achievements_total > 0) {
-    return Math.min(100, Math.round(((item.achievements_earned || 0) / item.achievements_total) * 100))
+  if (item.status === 'completed' || item.status === 'mastered') return 100
+  if (item.status === 'dropped') return 15
+  const raw = item.game?.raw_data
+  if (raw?.achievements_count && raw.achievements_count > 0) {
+    const earned = item.achievements_earned || 0
+    if (earned > 0) {
+      return Math.min(100, Math.round((earned / raw.achievements_count) * 100))
+    }
   }
-  if (item.hours_played > 0) {
-    return Math.min(100, Math.round((item.hours_played / 50) * 100))
+  if (item.achievements_total && item.achievements_total > 0) {
+    const earned = item.achievements_earned || 0
+    return Math.min(100, Math.round((earned / item.achievements_total) * 100))
+  }
+  if (item.hours_played && item.hours_played > 0) {
+    return Math.min(95, Math.round(item.hours_played * 4))
   }
   return 25
 }
 
-function onContinueTrackScroll() {
-  if (continueTrackRef.value) {
-    canScrollContinueLeft.value = continueTrackRef.value.scrollLeft > 20
+function getProgressLabel(item: CapyUserGame): string {
+  const raw = item.game?.raw_data
+  if (raw?.achievements_count && raw.achievements_count > 0) {
+    const earned = item.achievements_earned || 0
+    return `${earned}/${raw.achievements_count} conquistas`
   }
+  if (item.achievements_total && item.achievements_total > 0) {
+    return `${item.achievements_earned || 0}/${item.achievements_total} conquistas`
+  }
+  if (item.status === 'completed') return 'Jogo Zerado'
+  if (item.status === 'mastered') return '100% Platinado'
+  if (item.hours_played && item.hours_played > 0) {
+    return `${item.hours_played}h jogadas`
+  }
+  return `${getProgressPercent(item)}% concluído`
 }
 
-function scrollContinue(direction: number) {
-  if (!continueTrackRef.value) return
-  const itemWidth = 220 + 12
-  continueTrackRef.value.scrollBy({
-    left: itemWidth * 2 * direction,
-    behavior: 'smooth'
-  })
+async function onForceRefresh() {
+  isRefreshing.value = true
+  try {
+    await Promise.all([
+      gamesStore.fetchMyList(true),
+      gamesStore.fetchDiscover(true),
+      gamesStore.fetchCommunity(true)
+    ])
+  } finally {
+    isRefreshing.value = false
+  }
 }
 
 onMounted(async () => {
@@ -564,294 +562,391 @@ onMounted(async () => {
   padding-bottom: 24px;
 }
 
-/* Hero Banner */
-.hero-wrapper {
-  position: relative;
-  width: 100%;
-  margin-bottom: 8px;
+/* Page Header estilo CapyShowTime */
+.page-header {
+  padding: calc(var(--safe-top) + 16px) 0 16px;
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--bg-surface);
 }
 
-.hero-banner {
-  position: relative;
-  min-height: 380px;
-  background-size: cover;
-  background-position: center top;
+.header-content {
   display: flex;
-  align-items: flex-end;
-  padding-bottom: 32px;
-  padding-top: 60px;
+  justify-content: space-between;
+  align-items: center;
 }
 
-@media (min-width: 768px) {
-  .hero-banner {
-    min-height: 440px;
-    padding-bottom: 44px;
-  }
+.header-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.2;
 }
 
-.hero-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to top,
-    var(--bg-app) 0%,
-    rgba(18, 16, 14, 0.85) 45%,
-    rgba(18, 16, 14, 0.35) 100%
-  );
-  pointer-events: none;
+.header-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
 }
 
-.hero-content {
-  position: relative;
-  z-index: 2;
-  width: 100%;
-}
-
-.hero-meta-top {
+.header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.btn-icon-link {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.btn-icon-link:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  transform: translateY(-1px);
+}
+
+.page-body {
+  padding-top: 20px;
+}
+
+/* Loading & Empty State */
+.loading-state {
+  text-align: center;
+  padding: 60px 0;
+  color: var(--text-muted);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 50px 20px;
+}
+
+.empty-icon-box {
+  width: 80px;
+  height: 80px;
+  background-color: var(--bg-surface-elevated);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.empty-icon {
+  color: var(--color-accent);
+}
+
+.empty-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--text-main);
+}
+
+.empty-desc {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  max-width: 420px;
+  margin: 0 auto 24px;
+  line-height: 1.5;
+}
+
+/* Up Next Grid (Estilo CapyShowTime Cards) */
+.up-next-section {
+  margin-bottom: 32px;
+}
+
+.up-next-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.up-next-card {
+  display: flex;
+  gap: 16px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  transition: border-color 0.2s, transform 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.up-next-card:hover {
+  border-color: var(--color-primary-light);
+  transform: translateY(-1px);
+}
+
+.card-poster {
+  width: 88px;
+  height: 126px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+  background-color: var(--bg-surface-elevated);
+  cursor: pointer;
+  position: relative;
+  border: 1px solid var(--color-border-subtle);
+}
+
+.poster-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+
+.card-poster:hover .poster-img {
+  transform: scale(1.05);
+}
+
+.poster-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+
+.rating-badge-mini {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(15, 13, 21, 0.88);
+  backdrop-filter: blur(4px);
+  color: var(--color-accent);
+  border: 1px solid rgba(192, 132, 252, 0.4);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 2px;
+}
+
+.card-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.game-top-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.game-title-box {
+  flex: 1;
+  min-width: 0;
+}
+
+.game-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.game-title:hover {
+  color: var(--color-accent);
+}
+
+.game-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
 .platform-icon-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 7px;
+  padding: 2px 5px;
   background-color: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  color: var(--color-accent);
 }
 
-.meta-text {
-  font-size: 0.82rem;
-  color: var(--text-muted);
+.hours-text {
+  font-size: 0.75rem;
 }
 
 .meta-dot {
   color: var(--text-dim);
 }
 
-.hero-title {
-  font-size: 1.8rem;
-  font-weight: 800;
-  color: var(--text-main);
-  line-height: 1.15;
-  margin-bottom: 8px;
-  max-width: 650px;
-  letter-spacing: -0.5px;
+.status-pill-mini {
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-size: 0.68rem;
+  font-weight: 700;
 }
 
-@media (min-width: 768px) {
-  .hero-title {
-    font-size: 2.3rem;
-  }
+.status-pill-mini.completed {
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--color-success);
+  border: 1px solid rgba(52, 211, 153, 0.35);
 }
 
-.hero-synopsis {
-  font-size: 0.88rem;
-  color: var(--text-muted);
-  line-height: 1.45;
-  max-width: 580px;
-  margin-bottom: 18px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+.status-pill-mini.mastered {
+  background: var(--color-accent-dim);
+  color: var(--color-accent);
+  border: 1px solid rgba(192, 132, 252, 0.35);
+}
+
+/* Progresso no Jogo */
+.progress-container {
+  margin: 10px 0;
+}
+
+.progress-bar-bg {
+  width: 100%;
+  height: 6px;
+  background-color: var(--bg-surface-elevated);
+  border-radius: 3px;
   overflow: hidden;
+  margin-bottom: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.hero-actions {
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.progress-percent {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+/* Ações no Card */
+.card-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
+  padding-top: 6px;
+}
+
+.check-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: rgba(52, 211, 153, 0.14);
+  color: var(--color-success);
+  border: 1px solid rgba(52, 211, 153, 0.38);
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.check-action-btn:hover {
+  background-color: var(--color-success);
+  color: #0f0d15;
+  transform: translateY(-1px);
+}
+
+.action-btn-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.action-btn-pill:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-main);
+  border-color: var(--color-border);
+}
+
+.action-btn-pill.drop-pill {
+  background-color: rgba(248, 113, 113, 0.1);
+  color: var(--color-danger);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+.action-btn-pill.drop-pill:hover {
+  background-color: var(--color-danger);
+  color: #fff;
+}
+
+.action-btn-pill.review-pill {
+  background-color: var(--color-accent-dim);
+  color: var(--color-accent);
+  border-color: rgba(192, 132, 252, 0.35);
+}
+
+.action-btn-pill.review-pill:hover {
+  background-color: var(--color-accent);
+  color: #0f0d15;
+}
+
+.details-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: var(--bg-surface-elevated);
+  color: var(--text-muted);
+  border: 1px solid var(--color-border);
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.details-btn:hover {
+  background-color: var(--bg-surface-hover);
+  color: var(--text-main);
+  border-color: var(--color-accent);
 }
 
 /* Categorias */
 .categories-bar-wrapper {
-  margin-bottom: 16px;
-}
-
-/* Continuar Jogando Section */
-.continue-section {
-  margin-bottom: 28px;
-}
-
-.section-header {
-  margin-bottom: 12px;
-}
-
-.continue-wrapper {
-  position: relative;
-}
-
-.continue-track {
-  display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  scroll-behavior: smooth;
-  padding: 4px 0 12px;
-  scrollbar-width: none;
-}
-
-.continue-track::-webkit-scrollbar {
-  display: none;
-}
-
-.continue-card {
-  flex: 0 0 210px;
-  width: 210px;
-  display: flex;
-  flex-direction: column;
-}
-
-@media (min-width: 640px) {
-  .continue-card {
-    flex: 0 0 230px;
-    width: 230px;
-  }
-}
-
-.continue-thumb-wrapper {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  background-color: var(--bg-surface-elevated);
-  border: 1px solid var(--color-border);
-  transition: border-color 0.2s;
-  cursor: pointer;
-}
-
-.continue-card:hover .continue-thumb-wrapper {
-  border-color: var(--color-accent);
-}
-
-.continue-thumb {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.play-overlay-mini {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-accent);
-  opacity: 0.8;
-  transition: opacity 0.2s;
-}
-
-.continue-card:hover .play-overlay-mini {
-  opacity: 1;
-}
-
-.continue-progress-bar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background-color: rgba(0, 0, 0, 0.6);
-}
-
-.continue-progress-fill {
-  height: 100%;
-  background-color: var(--color-accent);
-}
-
-.continue-info {
-  margin-top: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.continue-title {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-main);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer;
-}
-
-.continue-title:hover {
-  color: var(--color-accent);
-}
-
-.continue-meta-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-}
-
-.platform-icon-wrap {
-  display: inline-flex;
-  align-items: center;
-}
-
-.hours-text {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-}
-
-/* Botões de Ação com Apenas Ícones */
-.card-icon-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--color-border-subtle);
-}
-
-.action-icon-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-sm);
-  background-color: var(--bg-surface-elevated);
-  border: 1px solid var(--color-border);
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.action-icon-btn:hover {
-  color: var(--text-main);
-  border-color: var(--color-primary-light);
-  background-color: var(--bg-surface-hover);
-}
-
-.action-icon-btn.complete-btn:hover {
-  color: var(--color-success);
-  border-color: rgba(52, 211, 153, 0.4);
-  background-color: rgba(52, 211, 153, 0.1);
-}
-
-.action-icon-btn.drop-btn:hover {
-  color: var(--color-danger);
-  border-color: rgba(248, 113, 113, 0.4);
-  background-color: rgba(248, 113, 113, 0.1);
-}
-
-.action-icon-btn.review-btn:hover {
-  color: var(--color-accent);
-  border-color: var(--color-accent);
-  background-color: rgba(245, 197, 24, 0.1);
+  margin-bottom: 24px;
 }
 
 /* Category Grid */
@@ -868,61 +963,17 @@ onMounted(async () => {
   }
 }
 
-.nav-btn {
-  position: absolute;
-  top: 45%;
-  transform: translateY(-50%);
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
-  background: rgba(22, 19, 17, 0.9);
-  border: 1px solid var(--color-border);
-  color: var(--text-main);
+.carousels-wrapper {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 10;
-  backdrop-filter: blur(8px);
-  transition: all 0.2s ease;
-  opacity: 0;
-}
-
-.continue-wrapper:hover .nav-btn {
-  opacity: 1;
-}
-
-.nav-btn:hover {
-  background: var(--color-accent);
-  color: #12100e;
-  border-color: var(--color-accent);
-}
-
-.nav-btn.prev {
-  left: -8px;
-}
-
-.nav-btn.next {
-  right: -8px;
-}
-
-@media (max-width: 768px) {
-  .nav-btn {
-    display: none !important;
-  }
-}
-
-.empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--text-muted);
+  flex-direction: column;
+  gap: 24px;
 }
 
 /* Modais de Confirmação */
 .confirm-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(18, 16, 14, 0.85);
+  background: rgba(15, 13, 21, 0.85);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
@@ -953,9 +1004,9 @@ onMounted(async () => {
 }
 
 .trophy-icon-box {
-  background: rgba(245, 197, 24, 0.15);
+  background: rgba(192, 132, 252, 0.15);
   color: var(--color-accent);
-  border: 1px solid rgba(245, 197, 24, 0.35);
+  border: 1px solid rgba(192, 132, 252, 0.35);
 }
 
 .drop-icon-box {
@@ -990,5 +1041,30 @@ onMounted(async () => {
 
 .btn-primary.danger:hover {
   background-color: #ef4444;
+}
+
+.spinning {
+  animation: spin 0.8s linear infinite;
+}
+
+@media (max-width: 600px) {
+  .up-next-card {
+    padding: 10px;
+    gap: 12px;
+  }
+  .card-poster {
+    width: 78px;
+    height: 112px;
+  }
+  .check-action-btn span,
+  .action-btn-pill span,
+  .details-btn span {
+    display: none;
+  }
+  .check-action-btn,
+  .action-btn-pill,
+  .details-btn {
+    padding: 7px;
+  }
 }
 </style>

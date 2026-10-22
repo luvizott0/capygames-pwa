@@ -33,7 +33,7 @@
       fill="currentColor"
       class="plat-icon xbox"
     >
-      <path d="M4.095 3.593c2.046-1.89 4.792-3.056 7.808-3.056 3.016 0 5.762 1.166 7.808 3.056l.097.09c.277.261.359.664.195 1.009-.434.912-1.258 2.503-2.648 4.604-1.638 2.476-3.486 4.887-5.452 7.086-1.966-2.199-3.814-4.61-5.452-7.086-1.39-2.101-2.214-3.692-2.648-4.604-.164-.345-.082-.748.195-1.009l.097-.09zM.536 7.587c-.34.19-.536.568-.536.96 0 5.485 3.698 10.111 8.761 11.589-2.482-1.942-4.646-4.225-6.398-6.723-.889-1.267-1.508-2.39-1.827-3.238l-.004-.012-.008-.021c-.053-.16-.017-.338.012-.555zm22.928 0c.029.217.065.395.012.555l-.008.021-.004.012c-.319.848-.938 1.971-1.827 3.238-1.752 2.498-3.916 4.781-6.398 6.723 5.063-1.478 8.761-6.104 8.761-11.589 0-.392-.196-.77-.536-.96zm-11.561 9.421c1.554-1.827 3.023-3.791 4.349-5.795 1.026-1.551 1.83-2.981 2.383-4.137-.962-.843-2.072-1.527-3.284-2.022-1.077.586-2.278.913-3.448.913-1.17 0-2.371-.327-3.448-.913-1.212.495-2.322 1.179-3.284 2.022.553 1.156 1.357 2.586 2.383 4.137 1.326 2.004 2.795 3.968 4.349 5.795z" />
+      <path d="M12 0C5.373 0 0 5.373 0 12c0 6.627 5.373 12 12 12s12-5.373 12-12C24 5.373 18.627 0 12 0zm-1.077 3.518c.365-.027.728-.037 1.077-.037.352 0 .713.01 1.08.037.942.068 2.052.28 3.255.673-.61 1.036-1.554 2.441-2.613 3.96-1.096 1.574-2.185 3.003-3.14 4.148-.954-1.145-2.043-2.574-3.14-4.148-1.06-1.52-2.003-2.924-2.613-3.96 1.203-.393 2.313-.605 3.255-.673h.039zm-5.46 2.29c.677 1.156 1.636 2.585 2.68 4.078 1.144 1.637 2.33 3.167 3.44 4.47-1.464 1.656-3.036 3.197-4.606 4.492-2.556-1.874-4.22-4.9-4.22-8.318 0-1.802.463-3.498 1.275-4.978l1.431.256zm17.074.256c.812 1.48 1.275 3.176 1.275 4.978 0 3.418-1.664 6.444-4.22 8.318-1.57-1.295-3.142-2.836-4.606-4.492 1.11-1.303 2.296-2.833 3.44-4.47 1.044-1.493 2.003-2.922 2.68-4.078l1.431-.256zM8.307 19.332c1.378-1.098 2.76-2.38 4.072-3.766 1.312 1.386 2.694 2.668 4.072 3.766-1.332.748-2.85 1.186-4.451 1.186-1.6 0-3.119-.438-4.451-1.186z" />
     </svg>
 
     <!-- Nintendo -->
@@ -55,17 +55,13 @@
       :height="size"
       viewBox="0 0 24 24"
       fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
       class="plat-icon retro"
     >
-      <rect x="2" y="6" width="20" height="12" rx="3" />
-      <path d="M6 12h4" />
-      <path d="M8 10v4" />
-      <circle cx="15" cy="13" r="1" fill="currentColor" />
-      <circle cx="18" cy="11" r="1" fill="currentColor" />
+      <rect x="2" y="6" width="20" height="12" rx="3" fill="#2d1b4e" stroke="#a855f7" stroke-width="1.8" />
+      <path d="M6 12h4M8 10v4" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" />
+      <circle cx="15.5" cy="13.5" r="1.3" fill="#ef4444" />
+      <circle cx="18" cy="10.5" r="1.3" fill="#fbbf24" />
+      <rect x="10.5" y="14" width="3" height="1" rx="0.5" fill="#a855f7" />
     </svg>
 
     <!-- Padrão (Gamepad) -->
@@ -81,10 +77,12 @@ const props = withDefaults(
   defineProps<{
     platform?: string
     size?: number
+    colored?: boolean
   }>(),
   {
     platform: '',
-    size: 16
+    size: 16,
+    colored: true
   }
 )
 
@@ -118,32 +116,46 @@ const iconType = computed(() => {
   align-items: center;
   justify-content: center;
   line-height: 1;
+  vertical-align: middle;
 }
 
 .plat-icon {
   display: inline-block;
   vertical-align: middle;
-  color: var(--text-muted);
-  transition: color 0.2s ease;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+  transition: transform 0.2s ease, filter 0.2s ease;
 }
 
-.plat-icon.steam:hover {
+.plat-icon:hover {
+  transform: scale(1.1);
+}
+
+/* Cores Oficiais de Cada Marca */
+.plat-icon.steam {
   color: #66c0f4;
+  fill: #66c0f4;
 }
 
-.plat-icon.playstation:hover {
+.plat-icon.playstation {
   color: #0070d1;
+  fill: #0070d1;
 }
 
-.plat-icon.xbox:hover {
+.plat-icon.xbox {
   color: #107c10;
+  fill: #107c10;
 }
 
-.plat-icon.nintendo:hover {
+.plat-icon.nintendo {
   color: #e60012;
+  fill: #e60012;
 }
 
-.plat-icon.retro:hover {
+.plat-icon.retro {
+  color: #a855f7;
+}
+
+.plat-icon.default {
   color: var(--color-accent);
 }
 </style>

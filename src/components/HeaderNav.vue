@@ -9,16 +9,6 @@
 
       <!-- Ações da Direita -->
       <div class="nav-actions">
-        <!-- Botão Conectar Steam / Xbox -->
-        <button
-          type="button"
-          class="action-btn"
-          title="Conectar Conta (Steam / Xbox)"
-          @click="showConnectModal = true"
-        >
-          <Gamepad2 :size="17" />
-        </button>
-
         <!-- Botão de Atualizar o App (PWA) -->
         <button
           type="button"
