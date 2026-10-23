@@ -1,12 +1,13 @@
 <template>
   <button
+    type="button"
     class="refresh-btn"
-    :class="{ spinning: isRefreshing }"
+    :class="{ 'is-refreshing': isRefreshing }"
     :disabled="isRefreshing"
     @click="$emit('refresh')"
     title="Recarregar dados"
   >
-    <RotateCw :size="18" />
+    <RotateCw :size="18" :class="{ 'spinning': isRefreshing }" />
   </button>
 </template>
 
@@ -42,7 +43,7 @@ defineEmits<{
   border-color: var(--color-accent);
 }
 
-.refresh-btn.spinning svg {
+.refresh-btn .spinning {
   animation: spin 0.8s linear infinite;
   color: var(--color-accent);
 }

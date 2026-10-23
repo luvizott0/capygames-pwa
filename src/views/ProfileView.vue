@@ -1,18 +1,35 @@
 <template>
   <div class="profile-page">
+    <!-- Header estilo CapyShowTime -->
+    <header class="page-header">
+      <div class="container">
+        <div class="header-content">
+          <div v-if="!isMe" class="friend-nav-bar">
+            <button class="back-btn" @click="goBack">
+              <ArrowLeft :size="18" />
+              <span>Voltar</span>
+            </button>
+          </div>
+          <div v-else class="header-title-box">
+            <h1 class="header-title mono">Meu Perfil</h1>
+            <p class="header-subtitle">Estatísticas e contas vinculadas</p>
+          </div>
+          <div class="header-actions">
+            <RefreshButton
+              :is-refreshing="isRefreshingProfile"
+              @refresh="onForceRefreshProfile"
+            />
+          </div>
+        </div>
+      </div>
+    </header>
+
     <div v-if="loading" class="loading-state">
       <div class="spinner"></div>
       <p>Carregando perfil...</p>
     </div>
 
     <div v-else-if="profile" class="container page-body fade-in">
-      <!-- Top Back Bar quando visualizando perfil de amigo -->
-      <div v-if="!isMe" class="friend-nav-bar">
-        <button class="back-btn" @click="goBack">
-          <ArrowLeft :size="18" />
-          <span>Voltar</span>
-        </button>
-      </div>
 
       <div class="profile-card">
         <div class="user-header">
@@ -368,6 +385,7 @@ import { useGamesStore } from '@/stores/games'
 import { capyGamesApi } from '@/api/capygames'
 import { usePwaUpdate } from '@/composables/usePwaUpdate'
 import ConnectModal from '@/components/ConnectModal.vue'
+import RefreshButton from '@/components/RefreshButton.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -436,7 +454,21 @@ function goToGame(gameId: number) {
   router.push(`/game/${gameId}`)
 }
 
-async function loadProfile(silent = false) {
+const isRefreshingProfile = ref(false)
+
+async function onForceRefreshProfile() {
+  isRefreshingProfile.value = true
+  try {
+    await Promise.all([
+      loadProfile(true),
+      isMe.value ? gamesStore.fetchMyList(true) : Promise.resolve()
+    ])
+  } finally {
+    isRefreshingProfile.value = false
+  }
+}
+
+async function loadProfile(force = false) {
   if (!targetUserId.value) return
 
   const cached = gamesStore.getCachedProfile(targetUserId.value)
@@ -444,13 +476,19 @@ async function loadProfile(silent = false) {
     profile.value = cached
   }
 
-  if (!profile.value && !silent) {
+  // Se já temos o perfil carregado (ou em cache) e não for um recarregamento forçado, não faz chamada à API
+  if (!force && profile.value) {
+    loading.value = false
+    return
+  }
+
+  if (!profile.value) {
     loading.value = true
   }
 
   try {
-    if (isMe.value) {
-      gamesStore.fetchMyList(silent)
+    if (isMe.value && force) {
+      await gamesStore.fetchMyList(true)
     }
     const res = await capyGamesApi.getUserProfile(targetUserId.value)
     profile.value = res.data
@@ -527,7 +565,7 @@ watch(
       profile.value = cached
       loading.value = !cached
     }
-    loadProfile(!!profile.value)
+    loadProfile(false)
   }
 )
 
@@ -545,7 +583,38 @@ onActivated(() => {
 
 <style scoped>
 .profile-page {
-  padding: calc(var(--safe-top) + 20px) 0 96px;
+  padding-bottom: 96px;
+}
+
+.page-header {
+  padding: calc(var(--safe-top) + 16px) 0 16px;
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--bg-surface);
+  margin-bottom: 20px;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+.header-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .friend-nav-bar {

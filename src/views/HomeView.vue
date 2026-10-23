@@ -268,7 +268,7 @@ const selectedGameForStatus = ref<CapyUserGame | null>(null)
 const currentlyPlayingGames = computed(() => {
   const list = gamesStore.myList || []
   return list
-    .filter(ug => ug.status === 'playing')
+    .filter(ug => ug.status === 'playing' || ug.status === 'on_hold')
     .slice()
     .sort((a, b) => {
       const dateA = new Date(a.updated_at || a.created_at || 0).getTime()
@@ -920,10 +920,6 @@ onMounted(async () => {
 
 .btn-primary.danger:hover {
   background-color: #ef4444;
-}
-
-.spinning {
-  animation: spin 0.8s linear infinite;
 }
 
 @media (max-width: 600px) {

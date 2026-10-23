@@ -5,6 +5,7 @@ import { capyGamesApi, type CapyUserGame, type GameSearchResult, type GameActivi
 const MY_LIST_CACHE_KEY = 'capygames_my_list_cache'
 const DISCOVER_CACHE_KEY = 'capygames_discover_cache_v2'
 const COMMUNITY_CACHE_KEY = 'capygames_community_cache'
+const PROFILES_CACHE_KEY = 'capygames_profiles_cache_v1'
 
 function loadFromStorage<T>(key: string, defaultValue: T): T {
   try {
@@ -58,15 +59,15 @@ export const useGamesStore = defineStore('games', () => {
   const myListActiveTab = ref('all')
 
   // 6. Profile Cache por ID de usuário
-  const profilesCache = ref<Record<number, any>>({})
+  const profilesCache = ref<Record<number, any>>(loadFromStorage(PROFILES_CACHE_KEY, {}))
 
   // Actions
   async function fetchMyList(force = false) {
     if (!force && myListLoaded.value && myList.value.length > 0) {
-      capyGamesApi.getMyLibrary().then(res => {
-        myList.value = res.data.data || []
-        saveToStorage(MY_LIST_CACHE_KEY, myList.value)
-      }).catch(err => console.error('Erro ao revalidar biblioteca em background:', err))
+
+
+
+
       return
     }
 
@@ -130,6 +131,7 @@ export const useGamesStore = defineStore('games', () => {
 
   function setCachedProfile(userId: number, data: any) {
     profilesCache.value[userId] = data
+    saveToStorage(PROFILES_CACHE_KEY, profilesCache.value)
   }
 
   function resetDiscoverFilters() {
@@ -172,6 +174,7 @@ export const useGamesStore = defineStore('games', () => {
         }
         myList.value = myList.value.map(ug => map.get(ug.game_id) || ug)
         saveToStorage(MY_LIST_CACHE_KEY, myList.value)
+
       }
       return res.data
     } catch (err) {
