@@ -266,10 +266,10 @@
             <div
               v-for="plat in availablePlatforms"
               :key="plat"
-              class="platform-chip"
+              class="platform-chip platform-icon-only"
+              :title="plat"
             >
-              <PlatformIcon :platform="plat" :size="16" />
-              <span>{{ plat }}</span>
+              <PlatformIcon :platform="plat" :size="20" />
             </div>
           </div>
         </div>
@@ -1264,6 +1264,17 @@ onMounted(() => {
   font-size: 0.8rem;
   color: var(--text-main);
   font-weight: 500;
+}
+
+.platform-chip.platform-icon-only {
+  padding: 8px 12px;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.platform-chip.platform-icon-only:hover {
+  border-color: var(--color-accent);
+  background-color: var(--bg-surface);
 }
 
 /* Recursos do Jogo */

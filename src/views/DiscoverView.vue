@@ -30,7 +30,7 @@
         <Search :size="18" class="search-icon" />
         <input
           v-model="searchQuery"
-          type="search"
+          type="text"
           placeholder="Buscar jogo (ex: Elden Ring, Zelda, Halo)..."
           class="search-input"
           @input="onSearchInput"
@@ -123,8 +123,6 @@
     <main class="page-body">
       <!-- Cabeçalho dos Resultados + Seletor de Visualização -->
       <div class="results-header">
-        <span class="results-count mono">{{ displayResults.length }} jogos disponíveis</span>
-
         <!-- Botão de alternância da forma de visualização (Padrão vs 4 por linha) -->
         <div class="view-mode-toggle">
           <button
@@ -486,6 +484,15 @@ onUnmounted(() => {
   font-size: 0.9rem;
 }
 
+.search-input::-webkit-search-cancel-button,
+.search-input::-webkit-search-decoration,
+.search-input::-webkit-search-results-button,
+.search-input::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
 .search-input::placeholder {
   color: var(--text-dim);
 }
@@ -606,15 +613,10 @@ onUnmounted(() => {
 /* Resultados */
 .results-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   margin-bottom: 16px;
   gap: 12px;
-}
-
-.results-count {
-  font-size: 0.78rem;
-  color: var(--text-dim);
 }
 
 .view-mode-toggle {

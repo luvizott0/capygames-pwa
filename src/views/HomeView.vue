@@ -78,8 +78,8 @@
                   </h3>
                   <div class="game-meta-row">
                     <!-- Ícone com cor respectiva da marca -->
-                    <span class="platform-icon-pill" :title="item.platform || 'Multiplataforma'">
-                      <PlatformIcon :platform="item.platform || 'PC'" :size="15" />
+                    <span class="platform-icon-pill" :title="getUserPlayingPlatform(item)">
+                      <PlatformIcon :platform="getUserPlayingPlatform(item)" :size="15" />
                     </span>
                     <span v-if="item.hours_played > 0" class="meta-dot">•</span>
                     <span v-if="item.hours_played > 0" class="hours-text mono">{{ item.hours_played }}h jogadas</span>
@@ -367,6 +367,44 @@ async function handleStatusUpdated() {
 async function handleStatusRemoved() {
   isStatusModalOpen.value = false
   await gamesStore.fetchMyList(true)
+}
+
+function getUserPlayingPlatform(item: CapyUserGame): string {
+  if (item.source === 'xbox' || item.game?.external_source === 'xbox') {
+    return 'Xbox'
+  }
+  if (item.source === 'steam' || item.game?.external_source === 'steam') {
+    return 'PC'
+  }
+  if (item.source === 'playstation' || item.game?.external_source === 'playstation') {
+    return 'PlayStation'
+  }
+  if (item.source === 'nintendo' || item.game?.external_source === 'nintendo') {
+    return 'Nintendo Switch'
+  }
+
+  if (item.platform_hours && typeof item.platform_hours === 'object') {
+    let maxPlat = ''
+    let maxHours = -1
+    for (const [p, h] of Object.entries(item.platform_hours)) {
+      if (typeof h === 'number' && h > maxHours) {
+        maxHours = h
+        maxPlat = p
+      }
+    }
+    if (maxPlat) return maxPlat
+  }
+
+  if (item.platform) {
+    const p = item.platform.toLowerCase()
+    if (p.includes('xbox')) return 'Xbox'
+    if (p.includes('playstation') || p.includes('ps5') || p.includes('ps4')) return 'PlayStation'
+    if (p.includes('switch') || p.includes('nintendo')) return 'Nintendo Switch'
+    if (p.includes('pc') || p.includes('steam')) return 'PC'
+    return item.platform
+  }
+
+  return item.game?.platforms?.[0] || 'PC'
 }
 
 function getProgressPercent(item: CapyUserGame): number {

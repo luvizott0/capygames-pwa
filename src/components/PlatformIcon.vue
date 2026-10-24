@@ -91,20 +91,20 @@ const platformName = computed(() => props.platform || 'Multiplataforma')
 const iconType = computed(() => {
   const p = (props.platform || '').toLowerCase()
 
-  if (/steam|pc|windows|computer|computador|epic|gog|battlenet/i.test(p)) {
-    return 'steam'
+  if (/xbox|series|xbl|microsoft/i.test(p)) {
+    return 'xbox'
   }
   if (/playstation|ps5|ps4|ps3|ps2|ps1|psp|vita|sony/i.test(p)) {
     return 'playstation'
-  }
-  if (/xbox|series|xbl|microsoft/i.test(p)) {
-    return 'xbox'
   }
   if (/nintendo|switch|wii|ds|3ds|gamecube|n64/i.test(p)) {
     return 'nintendo'
   }
   if (/retro|snes|nes|super nintendo|mega drive|genesis|game boy|gba|arcade|mame|atari|master system|sega|neogeo/i.test(p)) {
     return 'retro'
+  }
+  if (/steam|pc|windows|computer|computador|epic|gog|battlenet/i.test(p)) {
+    return 'steam'
   }
   return 'default'
 })
