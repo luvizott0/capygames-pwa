@@ -3,11 +3,26 @@
     <header class="page-header">
       <div class="header-top">
         <h1 class="header-title mono">Buscar</h1>
-        <RefreshButton
-          v-if="!searchQuery.trim()"
-          :is-refreshing="gamesStore.isRefreshingDiscover"
-          @refresh="onForceRefresh"
-        />
+        <div class="header-actions">
+          <button
+            type="button"
+            class="filter-toggle-btn"
+            :class="{ active: showFiltersPanel || activeFilterCount > 0 }"
+            @click="showFiltersPanel = !showFiltersPanel"
+          >
+            <SlidersHorizontal :size="16" />
+            <span>Filtros</span>
+            <span v-if="activeFilterCount > 0" class="filter-count-badge mono">
+              {{ activeFilterCount }}
+            </span>
+          </button>
+
+          <RefreshButton
+            v-if="!searchQuery.trim() && !hasActiveFilters"
+            :is-refreshing="gamesStore.isRefreshingDiscover"
+            @refresh="onForceRefresh"
+          />
+        </div>
       </div>
 
       <!-- Barra de Busca no estilo CapyFlix / CapyShowTime -->
@@ -25,58 +40,88 @@
         </button>
       </div>
 
-      <!-- 1. Barra Rápida de Plataformas -->
-      <div class="types-scroll-bar">
-        <button
-          v-for="plat in platformOptions"
-          :key="plat.id"
-          type="button"
-          class="genre-pill"
-          :class="{ active: selectedPlatform === plat.id }"
-          @click="selectPlatform(plat.id)"
-        >
-          {{ plat.name }}
-        </button>
-      </div>
-
-      <!-- 2. Filtro de Gêneros estilo CapyFlix -->
-      <div class="genres-section">
-        <div class="genres-label-row">
-          <span class="filter-label mono">Gêneros:</span>
-          <button
-            v-if="selectedGenre !== ''"
-            type="button"
-            class="clear-genre-btn mono"
-            @click="clearGenre"
-          >
-            Limpar gênero
-          </button>
+      <!-- Painel Expansível de Filtros (Igual CapyShowTime) -->
+      <div v-if="showFiltersPanel && !searchQuery.trim()" class="filters-panel fade-in">
+        <!-- 1. Plataforma -->
+        <div class="filter-group">
+          <label class="filter-label">
+            <Gamepad2 :size="14" class="label-icon accent" />
+            <span>Plataforma</span>
+          </label>
+          <div class="chips-row">
+            <button
+              v-for="plat in platformOptions"
+              :key="plat.id"
+              type="button"
+              class="filter-chip"
+              :class="{ active: selectedPlatform === plat.id }"
+              @click="selectPlatform(plat.id)"
+            >
+              {{ plat.name }}
+            </button>
+          </div>
         </div>
-        <div class="genres-scroll-bar">
-          <button
-            type="button"
-            class="genre-pill"
-            :class="{ active: selectedGenre === '' }"
-            @click="clearGenre"
-          >
-            Todos
-          </button>
-          <button
-            v-for="genre in genresList"
-            :key="genre.id"
-            type="button"
-            class="genre-pill"
-            :class="{ active: selectedGenre === genre.id }"
-            @click="selectGenre(genre.id)"
-          >
-            {{ genre.name }}
+
+        <!-- 2. Gênero -->
+        <div class="filter-group">
+          <label class="filter-label">
+            <Tag :size="14" class="label-icon" />
+            <span>Gênero</span>
+          </label>
+          <div class="chips-row">
+            <button
+              type="button"
+              class="filter-chip"
+              :class="{ active: selectedGenre === '' }"
+              @click="clearGenre"
+            >
+              Todos
+            </button>
+            <button
+              v-for="genre in genresList"
+              :key="genre.id"
+              type="button"
+              class="filter-chip"
+              :class="{ active: selectedGenre === genre.id }"
+              @click="selectGenre(genre.id)"
+            >
+              {{ genre.name }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. Ordenar por -->
+        <div class="filter-group">
+          <label class="filter-label">
+            <ArrowUpDown :size="14" class="label-icon" />
+            <span>Ordenar por</span>
+          </label>
+          <div class="chips-row">
+            <button
+              v-for="opt in sortOptions"
+              :key="opt.value"
+              type="button"
+              class="filter-chip"
+              :class="{ active: sortBy === opt.value }"
+              @click="sortBy = opt.value"
+            >
+              {{ opt.label }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Rodapé do painel de filtros (Limpar filtros) -->
+        <div v-if="hasActiveFilters" class="filters-footer">
+          <button type="button" class="reset-filters-btn mono" @click="resetFilters">
+            <RotateCcw :size="12" />
+            <span>Limpar filtros</span>
           </button>
         </div>
       </div>
     </header>
 
     <main class="page-body">
-      <!-- Cabeçalho dos Resultados + Seletor de Visualização (Justify Between) -->
+      <!-- Cabeçalho dos Resultados + Seletor de Visualização -->
       <div class="results-header">
         <span class="results-count mono">{{ displayResults.length }} jogos disponíveis</span>
 
@@ -106,27 +151,40 @@
         </div>
       </div>
 
-      <!-- Loading State -->
+      <!-- Loading State Inicial -->
       <div v-if="isSearching || (gamesStore.isRefreshingDiscover && gamesStore.popularGames.length === 0)" class="loading-state">
         <div class="spinner"></div>
         <p>{{ isSearching ? 'Buscando jogos no acervo...' : 'Carregando catálogo...' }}</p>
       </div>
 
-      <!-- Grade de Jogos (Padrão ou Compacta 4x4) -->
-      <div
-        v-else-if="displayResults.length > 0"
-        class="games-grid"
-        :class="{ 'compact-grid': viewMode === 'compact' }"
-      >
-        <GameCard
-          v-for="item in displayResults"
-          :key="item.id || item.external_id"
-          :game="item"
-          :compact="viewMode === 'compact'"
-        />
-      </div>
+      <!-- Grade de Jogos -->
+      <template v-else-if="displayResults.length > 0">
+        <div
+          class="games-grid"
+          :class="{ 'compact-grid': viewMode === 'compact' }"
+        >
+          <GameCard
+            v-for="item in displayResults"
+            :key="item.id || item.external_id"
+            :game="item"
+            :compact="viewMode === 'compact'"
+          />
+        </div>
 
-      <!-- Empty State no estilo CapyFlix / CapyShowTime -->
+        <!-- Scroll Infinito: Sentinel e Indicador de Carregamento -->
+        <div
+          v-if="!searchQuery.trim()"
+          ref="sentinelRef"
+          class="infinite-scroll-sentinel"
+        >
+          <div v-if="gamesStore.isLoadingMoreDiscover" class="infinite-loading">
+            <div class="spinner-mini"></div>
+            <span class="mono">Carregando mais jogos...</span>
+          </div>
+        </div>
+      </template>
+
+      <!-- Empty State -->
       <div v-else class="empty-state fade-in">
         <div class="empty-icon-box">
           <Gamepad2 :size="40" class="empty-icon" />
@@ -144,8 +202,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { Search, X, Gamepad2, LayoutGrid, Grid } from 'lucide-vue-next'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import {
+  Search,
+  X,
+  Gamepad2,
+  LayoutGrid,
+  Grid,
+  SlidersHorizontal,
+  Tag,
+  ArrowUpDown,
+  RotateCcw
+} from 'lucide-vue-next'
 import { useGamesStore } from '@/stores/games'
 import { capyGamesApi, type GameSearchResult } from '@/api/capygames'
 import GameCard from '@/components/GameCard.vue'
@@ -158,8 +226,18 @@ const searchResults = ref<GameSearchResult[]>([])
 const isSearching = ref(false)
 const viewMode = ref<'normal' | 'compact'>('normal')
 
+const showFiltersPanel = ref(false)
 const selectedPlatform = ref('all')
 const selectedGenre = ref('')
+const sortBy = ref<'popular' | 'alpha'>('popular')
+
+const sentinelRef = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | null = null
+
+const sortOptions: Array<{ label: string; value: 'popular' | 'alpha' }> = [
+  { label: 'Em Destaque / Populares', value: 'popular' },
+  { label: 'Título (A-Z)', value: 'alpha' }
+]
 
 const platformOptions = [
   { id: 'all', name: 'Todas Plataformas' },
@@ -180,6 +258,16 @@ const genresList = [
   { id: 'sports', name: 'Esportes' },
   { id: 'racing', name: 'Corrida' }
 ]
+
+const activeFilterCount = computed(() => {
+  let count = 0
+  if (selectedPlatform.value !== 'all') count++
+  if (selectedGenre.value !== '') count++
+  if (sortBy.value !== 'popular') count++
+  return count
+})
+
+const hasActiveFilters = computed(() => activeFilterCount.value > 0)
 
 let searchTimer: number | undefined = undefined
 
@@ -230,6 +318,7 @@ function resetFilters() {
   searchResults.value = []
   selectedPlatform.value = 'all'
   selectedGenre.value = ''
+  sortBy.value = 'popular'
 }
 
 const displayResults = computed(() => {
@@ -254,12 +343,52 @@ const displayResults = computed(() => {
     })
   }
 
+  // Ordenação
+  if (sortBy.value === 'alpha') {
+    list = [...list].sort((a, b) => (a.title || '').localeCompare(b.title || ''))
+  }
+
   return list
+})
+
+function setupObserver() {
+  if (observer) {
+    observer.disconnect()
+    observer = null
+  }
+
+  if (!sentinelRef.value) return
+
+  observer = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0]
+      if (entry && entry.isIntersecting && !searchQuery.value.trim() && gamesStore.discoverHasMore) {
+        gamesStore.loadMorePopular()
+      }
+    },
+    {
+      rootMargin: '300px 0px'
+    }
+  )
+
+  observer.observe(sentinelRef.value)
+}
+
+watch(sentinelRef, () => {
+  setupObserver()
 })
 
 onMounted(async () => {
   if (gamesStore.popularGames.length === 0) {
     await gamesStore.fetchDiscover()
+  }
+  setupObserver()
+})
+
+onUnmounted(() => {
+  if (observer) {
+    observer.disconnect()
+    observer = null
   }
 })
 </script>
@@ -287,6 +416,43 @@ onMounted(async () => {
   color: var(--text-main);
   margin-bottom: 0;
   line-height: 1.2;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Botão de Filtros igual CapyShowTime */
+.filter-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.filter-toggle-btn.active {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background-color: rgba(245, 197, 24, 0.1);
+}
+
+.filter-count-badge {
+  background-color: var(--color-accent);
+  color: #12100e;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
 }
 
 /* Barra de Busca */
@@ -336,43 +502,105 @@ onMounted(async () => {
   color: var(--text-main);
 }
 
-/* Formatos / Plataformas */
-.types-scroll-bar {
+/* Painel de Filtros Avançados */
+.filters-panel {
+  margin-top: 4px;
+  margin-bottom: 16px;
+  padding: 14px;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
   gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-  scrollbar-width: none;
-}
-
-.types-scroll-bar::-webkit-scrollbar {
-  display: none;
-}
-
-/* Gêneros */
-.genres-section {
-  margin-top: 6px;
-}
-
-.genres-label-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
 }
 
 .filter-label {
-  font-size: 0.72rem;
-  color: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.03em;
 }
 
-.clear-genre-btn {
-  font-size: 0.72rem;
+.label-icon {
+  color: var(--text-dim);
+}
+
+.label-icon.accent {
   color: var(--color-accent);
-  text-decoration: underline;
+}
+
+.chips-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.chips-row::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-chip {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.15s;
   cursor: pointer;
+}
+
+.filter-chip:hover {
+  color: var(--text-main);
+  border-color: var(--color-primary-light);
+}
+
+.filter-chip.active {
+  background-color: rgba(245, 197, 24, 0.15);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.filters-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+  border-top: 1px solid var(--color-border);
+}
+
+.reset-filters-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: none;
+  border: 1px solid var(--color-border);
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.reset-filters-btn:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
 }
 
 /* Resultados */
@@ -438,6 +666,33 @@ onMounted(async () => {
   gap: 8px !important;
 }
 
+/* Scroll Infinito */
+.infinite-scroll-sentinel {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 24px;
+  margin-bottom: 24px;
+}
+
+.infinite-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.spinner-mini {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
 .loading-state {
   text-align: center;
   padding: 60px 20px;
@@ -478,5 +733,11 @@ onMounted(async () => {
   max-width: 380px;
   margin: 0 auto 20px;
   line-height: 1.5;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

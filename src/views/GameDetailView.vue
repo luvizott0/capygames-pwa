@@ -139,6 +139,33 @@
           </div>
         </div>
 
+        <!-- Amigos que jogam -->
+        <div v-if="housemates.length > 0" class="detail-section housemates-section">
+          <h3 class="section-title">Amigos que jogam</h3>
+          <div class="housemates-avatars">
+            <div
+              v-for="hm in housemates"
+              :key="hm.user.id"
+              class="housemate-item"
+              :title="`Ver perfil de ${hm.user.name}`"
+              @click="goToProfile(hm.user.id)"
+            >
+              <img
+                v-if="hm.user.avatar_url && !failedAvatars[hm.user.id]"
+                :src="hm.user.avatar_url"
+                :alt="hm.user.name"
+                class="hm-avatar"
+                @error="failedAvatars[hm.user.id] = true"
+              />
+              <div v-else class="hm-avatar-placeholder">
+                {{ hm.user.name.charAt(0) }}
+              </div>
+              <span class="hm-name">{{ hm.user.name.split(' ')[0] }}</span>
+              <span v-if="hm.rating" class="hm-rating mono">★{{ Number(hm.rating).toFixed(1) }}</span>
+            </div>
+          </div>
+        </div>
+
         <!-- Meu Progresso & Conquistas (Se estiver na biblioteca ou tiver progresso) -->
         <div class="detail-section progress-detail-box">
           <div class="section-header-row">
@@ -281,33 +308,6 @@
               <div class="screenshot-hover-overlay">
                 <Maximize2 :size="18" />
               </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Amigos que jogam (Label ajustada conforme solicitado) -->
-        <div v-if="housemates.length > 0" class="detail-section housemates-section">
-          <h3 class="section-title">Amigos que jogam</h3>
-          <div class="housemates-avatars">
-            <div
-              v-for="hm in housemates"
-              :key="hm.user.id"
-              class="housemate-item"
-              :title="`Ver perfil de ${hm.user.name}`"
-              @click="goToProfile(hm.user.id)"
-            >
-              <img
-                v-if="hm.user.avatar_url && !failedAvatars[hm.user.id]"
-                :src="hm.user.avatar_url"
-                :alt="hm.user.name"
-                class="hm-avatar"
-                @error="failedAvatars[hm.user.id] = true"
-              />
-              <div v-else class="hm-avatar-placeholder">
-                {{ hm.user.name.charAt(0) }}
-              </div>
-              <span class="hm-name">{{ hm.user.name.split(' ')[0] }}</span>
-              <span v-if="hm.rating" class="hm-rating mono">★{{ Number(hm.rating).toFixed(1) }}</span>
             </div>
           </div>
         </div>

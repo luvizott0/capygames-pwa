@@ -133,8 +133,14 @@ export const capyGamesApi = {
     return apiClient.get<{ data: GameSearchResult[] }>('/capygames/search', { params: { q: query } })
   },
 
-  popular() {
-    return apiClient.get<{ data: GameSearchResult[] }>('/capygames/popular')
+  popular(page = 1, perPage = 24) {
+    return apiClient.get<{
+      data: GameSearchResult[]
+      page: number
+      per_page: number
+      total: number
+      has_more: boolean
+    }>('/capygames/popular', { params: { page, per_page: perPage } })
   },
 
   getGame(id: number) {

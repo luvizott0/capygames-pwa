@@ -37,6 +37,9 @@ export const useGamesStore = defineStore('games', () => {
   const popularGames = ref<GameSearchResult[]>(loadFromStorage(DISCOVER_CACHE_KEY, []))
   const discoverLoaded = ref(popularGames.value.length > 0)
   const isRefreshingDiscover = ref(false)
+  const discoverCurrentPage = ref(1)
+  const discoverHasMore = ref(true)
+  const isLoadingMoreDiscover = ref(false)
 
   // 3. Community State
   const communityActivities = ref<GameActivity[]>(loadFromStorage(COMMUNITY_CACHE_KEY, []))
@@ -90,15 +93,47 @@ export const useGamesStore = defineStore('games', () => {
     }
 
     isRefreshingDiscover.value = true
+    discoverCurrentPage.value = 1
     try {
-      const res = await capyGamesApi.popular()
+      const res = await capyGamesApi.popular(1, 24)
       popularGames.value = res.data.data || []
+      discoverHasMore.value = res.data.has_more ?? false
       discoverLoaded.value = true
       saveToStorage(DISCOVER_CACHE_KEY, popularGames.value)
     } catch (err) {
       console.error('Erro ao buscar Descobrir:', err)
     } finally {
       isRefreshingDiscover.value = false
+    }
+  }
+
+  async function loadMorePopular() {
+    if (isLoadingMoreDiscover.value || !discoverHasMore.value || isRefreshingDiscover.value) {
+      return
+    }
+
+    isLoadingMoreDiscover.value = true
+    try {
+      const nextPage = discoverCurrentPage.value + 1
+      const res = await capyGamesApi.popular(nextPage, 24)
+      const newItems = res.data.data || []
+      if (newItems.length > 0) {
+        discoverCurrentPage.value = nextPage
+        const existingKeys = new Set(popularGames.value.map(g => g.id || g.external_id))
+        for (const item of newItems) {
+          const key = item.id || item.external_id
+          if (!existingKeys.has(key)) {
+            popularGames.value.push(item)
+            existingKeys.add(key)
+          }
+        }
+        saveToStorage(DISCOVER_CACHE_KEY, popularGames.value)
+      }
+      discoverHasMore.value = res.data.has_more ?? false
+    } catch (err) {
+      console.error('Erro ao carregar mais jogos populares:', err)
+    } finally {
+      isLoadingMoreDiscover.value = false
     }
   }
 
@@ -199,7 +234,11 @@ export const useGamesStore = defineStore('games', () => {
     popularGames,
     discoverLoaded,
     isRefreshingDiscover,
+    discoverCurrentPage,
+    discoverHasMore,
+    isLoadingMoreDiscover,
     fetchDiscover,
+    loadMorePopular,
 
     communityActivities,
     communityLoaded,
