@@ -372,6 +372,17 @@ async function handleStatusRemoved() {
 function getProgressPercent(item: CapyUserGame): number {
   if (item.status === 'completed' || item.status === 'mastered') return 100
   if (item.status === 'dropped') return 15
+  if (item.progress_percentage !== undefined && item.progress_percentage !== null && item.progress_percentage > 0) {
+    return item.progress_percentage
+  }
+  if (item.achievements_total && item.achievements_total > 0) {
+    const earned = item.achievements_earned || 0
+    return Math.min(100, Math.round((earned / item.achievements_total) * 100))
+  }
+  if (item.gamerscore_total && item.gamerscore_total > 0) {
+    const earned = item.gamerscore_earned || 0
+    return Math.min(100, Math.round((earned / item.gamerscore_total) * 100))
+  }
   const raw = item.game?.raw_data
   if (raw?.achievements_count && raw.achievements_count > 0) {
     const earned = item.achievements_earned || 0
@@ -379,31 +390,34 @@ function getProgressPercent(item: CapyUserGame): number {
       return Math.min(100, Math.round((earned / raw.achievements_count) * 100))
     }
   }
-  if (item.achievements_total && item.achievements_total > 0) {
-    const earned = item.achievements_earned || 0
-    return Math.min(100, Math.round((earned / item.achievements_total) * 100))
-  }
   if (item.hours_played && item.hours_played > 0) {
     return Math.min(95, Math.round(item.hours_played * 4))
   }
-  return 25
+  return 0
 }
 
 function getProgressLabel(item: CapyUserGame): string {
-  const raw = item.game?.raw_data
-  if (raw?.achievements_count && raw.achievements_count > 0) {
-    const earned = item.achievements_earned || 0
-    return `${earned}/${raw.achievements_count} conquistas`
-  }
+  if (item.status === 'completed') return 'Jogo Zerado'
+  if (item.status === 'mastered') return '100% Platinado'
   if (item.achievements_total && item.achievements_total > 0) {
     return `${item.achievements_earned || 0}/${item.achievements_total} conquistas`
   }
-  if (item.status === 'completed') return 'Jogo Zerado'
-  if (item.status === 'mastered') return '100% Platinado'
+  const raw = item.game?.raw_data
+  if (raw?.achievements_count && raw.achievements_count > 0 && item.achievements_earned) {
+    return `${item.achievements_earned}/${raw.achievements_count} conquistas`
+  }
+  if (item.gamerscore_total && item.gamerscore_total > 0) {
+    const earnedAch = item.achievements_earned ? `${item.achievements_earned} conquistas • ` : ''
+    return `${earnedAch}${item.gamerscore_earned || 0}/${item.gamerscore_total}G`
+  }
+  if (item.achievements_earned && item.achievements_earned > 0) {
+    return `${item.achievements_earned} conquistas`
+  }
   if (item.hours_played && item.hours_played > 0) {
     return `${item.hours_played}h jogadas`
   }
-  return `${getProgressPercent(item)}% concluído`
+  const pct = getProgressPercent(item)
+  return pct > 0 ? `${pct}% concluído` : 'Em andamento'
 }
 
 async function onForceRefresh() {

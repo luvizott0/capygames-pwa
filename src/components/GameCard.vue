@@ -77,7 +77,12 @@ const actualGame = computed(() => {
 const matchedUserGame = computed<CapyUserGame | null>(() => {
   if (props.userGame) return props.userGame
   if (!actualGame.value?.id) return null
-  return gamesStore.myList.find(ug => ug.game_id === actualGame.value?.id || ug.game?.id === actualGame.value?.id) || null
+  return gamesStore.myList.find(ug =>
+    ug.game_id === actualGame.value?.id ||
+    ug.game?.id === actualGame.value?.id ||
+    (ug.game?.slug && actualGame.value?.slug && ug.game.slug === actualGame.value.slug) ||
+    (ug.game?.title && actualGame.value?.title && ug.game.title.trim().toLowerCase() === actualGame.value.title.trim().toLowerCase())
+  ) || null
 })
 
 const defaultCover = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=400&q=80'

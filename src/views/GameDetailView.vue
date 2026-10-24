@@ -132,9 +132,10 @@
           <div class="rating-card clickable" @click="isModalOpen = true">
             <span class="rating-label">Seu Tempo</span>
             <div class="rating-value-box">
-              <span class="rating-val mono">{{ totalPlatformHours }}h</span>
+              <span v-if="totalPlatformHours > 0" class="rating-val mono">{{ totalPlatformHours }}h</span>
+              <span v-else class="rating-val-empty mono">--</span>
             </div>
-            <span class="rating-subtext" :title="platformHoursBreakdown">{{ platformHoursSubtext }}</span>
+            <span class="rating-subtext" :title="platformHoursBreakdown">{{ totalPlatformHours > 0 ? platformHoursSubtext : 'Toque para registrar' }}</span>
           </div>
         </div>
 
@@ -153,11 +154,11 @@
               <div class="progress-header-labels">
                 <span class="prog-label">
                   <Trophy :size="15" class="trophy-gold" />
-                  <span>Conquistas:</span>
+                  <span>Progresso:</span>
                 </span>
                 <span class="prog-numbers mono">
-                  {{ achievementsEarned }}/{{ totalAchievementsCount }}
-                  <template v-if="totalAchievementsCount > 0">
+                  {{ progressScoreLabel }}
+                  <template v-if="achievementPercent > 0">
                     ({{ achievementPercent }}%)
                   </template>
                 </span>
@@ -493,8 +494,37 @@ const totalAchievementsCount = computed(() => {
 })
 
 const achievementPercent = computed(() => {
-  if (totalAchievementsCount.value <= 0) return 0
-  return Math.min(100, Math.round((achievementsEarned.value / totalAchievementsCount.value) * 100))
+  if (myStatus.value?.status === 'completed' || myStatus.value?.status === 'mastered') return 100
+  if (totalAchievementsCount.value > 0) {
+    return Math.min(100, Math.round((achievementsEarned.value / totalAchievementsCount.value) * 100))
+  }
+  if (myStatus.value?.gamerscore_total && myStatus.value.gamerscore_total > 0) {
+    return Math.min(100, Math.round(((myStatus.value.gamerscore_earned || 0) / myStatus.value.gamerscore_total) * 100))
+  }
+  if (myStatus.value?.progress_percentage && myStatus.value.progress_percentage > 0) {
+    return myStatus.value.progress_percentage
+  }
+  if (myStatus.value?.hours_played && myStatus.value.hours_played > 0) {
+    return Math.min(95, Math.round(myStatus.value.hours_played * 4))
+  }
+  return 0
+})
+
+const progressScoreLabel = computed(() => {
+  if (totalAchievementsCount.value > 0) {
+    return `${achievementsEarned.value}/${totalAchievementsCount.value} conquistas`
+  }
+  if (myStatus.value?.gamerscore_total && myStatus.value.gamerscore_total > 0) {
+    const ach = achievementsEarned.value > 0 ? `${achievementsEarned.value} conquistas • ` : ''
+    return `${ach}${myStatus.value.gamerscore_earned || 0}/${myStatus.value.gamerscore_total}G`
+  }
+  if (achievementsEarned.value > 0) {
+    return `${achievementsEarned.value} conquistas`
+  }
+  if (myStatus.value?.hours_played && myStatus.value.hours_played > 0) {
+    return `${myStatus.value.hours_played}h registradas`
+  }
+  return 'Em andamento'
 })
 
 async function fetchGameDetails() {

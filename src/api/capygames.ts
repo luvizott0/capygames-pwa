@@ -42,6 +42,7 @@ export interface CapyUserGame {
   achievements_total?: number
   gamerscore_earned?: number
   gamerscore_total?: number
+  progress_percentage?: number
   is_favorite: boolean
   source?: string
   started_at?: string
@@ -53,6 +54,7 @@ export interface CapyUserGame {
 
 export interface GameSearchResult {
   id?: number | null
+  slug?: string
   external_id: string
   external_source: string
   title: string
