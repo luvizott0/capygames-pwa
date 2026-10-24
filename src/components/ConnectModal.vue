@@ -76,6 +76,8 @@ async function handleSubmit() {
         <p class="description">
           <template v-if="provider === 'steam'">
             Informe seu <strong>Steam ID (17 dígitos)</strong>, seu <strong>apelido personalizado</strong> ou o link do seu perfil público (ex: <code>steamcommunity.com/id/seu-nome</code>).
+            <br /><br />
+            ⚠️ <strong>Importante:</strong> Para que seus jogos e horas sejam importados, o seu perfil da Steam precisa estar configurado com <strong>"Detalhes dos jogos" como PÚBLICO</strong> (em Perfil -> Modificar Perfil -> Configurações de Privacidade da Steam).
           </template>
           <template v-else>
             Informe a sua <strong>Gamertag do Xbox Live</strong>. Seus jogos, Gamerscore e conquistas serão sincronizados automaticamente com o CapyGames.

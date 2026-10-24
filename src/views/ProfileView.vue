@@ -298,6 +298,11 @@
               </div>
             </div>
           </div>
+
+          <!-- Feedback de Sincronização de Contas -->
+          <div v-if="syncMsg" class="update-feedback-banner fade-in" style="margin-top: 12px;">
+            <span>ℹ️ {{ syncMsg }}</span>
+          </div>
         </div>
 
         <!-- Atualizações do App -->
