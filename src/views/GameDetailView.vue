@@ -139,49 +139,74 @@
           </div>
         </div>
 
-        <!-- Meu Progresso & Conquistas (Se estiver na biblioteca ou tiver conquistas) -->
+        <!-- Meu Progresso & Conquistas (Se estiver na biblioteca ou tiver progresso) -->
         <div class="detail-section progress-detail-box">
           <div class="section-header-row">
-            <h3 class="section-title">Meu Progresso</h3>
-            <span v-if="myStatus?.status" class="season-avg-badge mono">
-              {{ getStatusLabel(myStatus.status) }}
+            <div class="progress-title-group">
+              <Trophy :size="18" class="trophy-gold" />
+              <h3 class="section-title">Meu Progresso</h3>
+            </div>
+            <span v-if="myStatus?.status" class="status-indicator-badge-mini mono" :class="`badge-${effectiveStatus}`">
+              {{ getStatusLabel(effectiveStatus) }}
             </span>
           </div>
 
-          <div class="progress-stats-grid">
-            <!-- Barra de Progresso de Conquistas -->
-            <div class="progress-col">
-              <div class="progress-header-labels">
-                <span class="prog-label">
-                  <Trophy :size="15" class="trophy-gold" />
-                  <span>Progresso:</span>
+          <!-- Barra de Progresso Principal -->
+          <div class="progress-bar-card">
+            <div class="progress-bar-header">
+              <span class="prog-main-title">Conclusão</span>
+              <span class="prog-main-percent mono">{{ achievementPercent }}%</span>
+            </div>
+            <div class="detail-progress-bar">
+              <div
+                class="detail-progress-fill"
+                :style="{ width: `${achievementPercent}%` }"
+              ></div>
+            </div>
+          </div>
+
+          <!-- Grade de Métricas (Conquistas, Gamerscore, Horas) -->
+          <div v-if="hasProgressMetrics" class="progress-metrics-grid">
+            <!-- 1. Conquistas -->
+            <div v-if="achievementsEarned > 0 || totalAchievementsCount > 0" class="metric-card">
+              <Award :size="16" class="metric-icon gold" />
+              <div class="metric-info">
+                <span class="metric-val mono">
+                  {{ achievementsEarned }}<template v-if="totalAchievementsCount > 0">/{{ totalAchievementsCount }}</template>
                 </span>
-                <span class="prog-numbers mono">
-                  {{ progressScoreLabel }}
-                  <template v-if="achievementPercent > 0">
-                    ({{ achievementPercent }}%)
-                  </template>
-                </span>
-              </div>
-              <div class="detail-progress-bar">
-                <div
-                  class="detail-progress-fill"
-                  :style="{ width: `${achievementPercent}%` }"
-                ></div>
+                <span class="metric-sub">Conquistas</span>
               </div>
             </div>
 
-            <!-- Botão de Editar Registro -->
-            <div class="progress-action-col">
-              <button
-                type="button"
-                class="season-watch-all-btn"
-                @click="isModalOpen = true"
-              >
-                <Edit3 :size="15" stroke-width="2.5" />
-                <span>{{ myStatus ? 'Editar Horas / Nota / Review' : 'Adicionar e Avaliar Jogo' }}</span>
-              </button>
+            <!-- 2. Gamerscore (Xbox) -->
+            <div v-if="myStatus?.gamerscore_total" class="metric-card">
+              <Gamepad2 :size="16" class="metric-icon accent" />
+              <div class="metric-info">
+                <span class="metric-val mono">{{ myStatus.gamerscore_earned || 0 }} / {{ myStatus.gamerscore_total }}</span>
+                <span class="metric-sub">Gamerscore (G)</span>
+              </div>
             </div>
+
+            <!-- 3. Horas Jogadas -->
+            <div v-if="totalPlatformHours > 0" class="metric-card">
+              <Clock :size="16" class="metric-icon blue" />
+              <div class="metric-info">
+                <span class="metric-val mono">{{ totalPlatformHours }}h</span>
+                <span class="metric-sub">Tempo Jogado</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Botão de Editar Registro -->
+          <div class="progress-footer-action">
+            <button
+              type="button"
+              class="btn-edit-progress"
+              @click="isModalOpen = true"
+            >
+              <Edit3 :size="14" />
+              <span>{{ myStatus ? 'Editar Horas / Nota / Review' : 'Adicionar e Avaliar Jogo' }}</span>
+            </button>
           </div>
         </div>
 
@@ -372,7 +397,9 @@ import {
   Play,
   Ban,
   Calendar,
-  Building2
+  Building2,
+  Award,
+  Clock
 } from 'lucide-vue-next'
 import { capyGamesApi, type CapyGame, type CapyUserGame } from '@/api/capygames'
 import { useGamesStore } from '@/stores/games'
@@ -510,21 +537,13 @@ const achievementPercent = computed(() => {
   return 0
 })
 
-const progressScoreLabel = computed(() => {
-  if (totalAchievementsCount.value > 0) {
-    return `${achievementsEarned.value}/${totalAchievementsCount.value} conquistas`
-  }
-  if (myStatus.value?.gamerscore_total && myStatus.value.gamerscore_total > 0) {
-    const ach = achievementsEarned.value > 0 ? `${achievementsEarned.value} conquistas • ` : ''
-    return `${ach}${myStatus.value.gamerscore_earned || 0}/${myStatus.value.gamerscore_total}G`
-  }
-  if (achievementsEarned.value > 0) {
-    return `${achievementsEarned.value} conquistas`
-  }
-  if (myStatus.value?.hours_played && myStatus.value.hours_played > 0) {
-    return `${myStatus.value.hours_played}h registradas`
-  }
-  return 'Em andamento'
+const hasProgressMetrics = computed(() => {
+  return (
+    achievementsEarned.value > 0 ||
+    totalAchievementsCount.value > 0 ||
+    Boolean(myStatus.value?.gamerscore_total) ||
+    totalPlatformHours.value > 0
+  )
 })
 
 async function fetchGameDetails() {
@@ -1019,103 +1038,212 @@ onMounted(() => {
 .progress-detail-box {
   background-color: var(--bg-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 16px;
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
 .section-header-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 14px;
 }
 
-.season-avg-badge {
-  background-color: var(--color-accent);
-  color: #12100e;
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-}
-
-.progress-stats-grid {
+.progress-title-group {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-@media (min-width: 640px) {
-  .progress-stats-grid {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-}
-
-.progress-col {
-  flex: 1;
-}
-
-.progress-header-labels {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  font-size: 0.82rem;
-  margin-bottom: 6px;
-}
-
-.prog-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-main);
-  font-weight: 600;
+  gap: 8px;
 }
 
 .trophy-gold {
-  color: var(--color-accent);
+  color: #fbbf24;
 }
 
-.prog-numbers {
+.status-indicator-badge-mini {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid var(--color-border);
+  background: var(--bg-surface-elevated);
   color: var(--text-muted);
-  font-size: 0.78rem;
+}
+
+.status-indicator-badge-mini.badge-playing {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.status-indicator-badge-mini.badge-completed {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.status-indicator-badge-mini.badge-mastered {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.status-indicator-badge-mini.badge-on_hold {
+  background-color: rgba(249, 115, 22, 0.15);
+  color: #fb923c;
+  border-color: rgba(249, 115, 22, 0.35);
+}
+
+.status-indicator-badge-mini.badge-dropped {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+/* Card da Barra de Progresso */
+.progress-bar-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.prog-main-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.prog-main-percent {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-accent);
 }
 
 .detail-progress-bar {
   width: 100%;
-  height: 6px;
+  height: 8px;
   background-color: var(--bg-surface-elevated);
-  border-radius: 3px;
+  border-radius: 4px;
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .detail-progress-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-accent) 100%);
-  border-radius: 3px;
+  border-radius: 4px;
   transition: width 0.4s ease;
 }
 
-.season-watch-all-btn {
+/* Grade de Métricas */
+.progress-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.metric-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.2s;
+}
+
+.metric-card:hover {
+  border-color: rgba(192, 132, 252, 0.3);
+}
+
+.metric-icon {
+  flex-shrink: 0;
+}
+
+.metric-icon.gold {
+  color: #fbbf24;
+}
+
+.metric-icon.accent {
+  color: var(--color-accent);
+}
+
+.metric-icon.blue {
+  color: #60a5fa;
+}
+
+.metric-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.metric-val {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metric-sub {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Footer Action */
+.progress-footer-action {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.btn-edit-progress {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 7px;
   background-color: var(--bg-surface-elevated);
   border: 1px solid var(--color-border);
   color: var(--text-main);
-  padding: 8px 14px;
+  padding: 9px 16px;
   border-radius: var(--radius-sm);
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
+  transition: all 0.2s ease;
+  width: 100%;
 }
 
-.season-watch-all-btn:hover {
+@media (min-width: 640px) {
+  .btn-edit-progress {
+    width: auto;
+  }
+}
+
+.btn-edit-progress:hover {
+  background-color: var(--bg-surface-hover);
   border-color: var(--color-accent);
   color: var(--color-accent);
+  transform: translateY(-1px);
 }
 
 /* Onde Jogar (Plataformas) */
