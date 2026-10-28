@@ -155,20 +155,18 @@
 
       <!-- Carrosséis da Home: apenas "Jogados pelos amigos" e "Mais bem avaliados" -->
       <div class="carousels-wrapper">
-        <!-- 1. Jogados pelos amigos -->
+        <!-- 1. Jogados pelos amigos (Últimos 10 jogos jogados pelos amigos da Capihouse) -->
         <GameCarousel
-          v-if="communityGames.length > 0"
+          v-if="friendsGames.length > 0"
           title="Jogados pelos amigos"
-          :items="communityGames.slice(0, 10)"
-          view-all-route="/community"
+          :items="friendsGames"
         />
 
-        <!-- 2. Mais Bem Avaliados -->
+        <!-- 2. Mais Bem Avaliados (Top 10 ordenado do melhor ao pior) -->
         <GameCarousel
           v-if="topRatedGames.length > 0"
           title="Mais bem avaliados"
-          :items="topRatedGames.slice(0, 10)"
-          view-all-route="/discover"
+          :items="topRatedGames"
         />
       </div>
     </main>
@@ -278,24 +276,27 @@ const currentlyPlayingGames = computed(() => {
     .slice(0, 5)
 })
 
-// 1. Jogados pelos amigos (atividades da comunidade)
-const communityGames = computed(() => {
+// 1. Jogados pelos amigos: últimos 10 jogos jogados pelos amigos da Capihouse
+const friendsGames = computed(() => {
+  if (gamesStore.friendsRecentGames && gamesStore.friendsRecentGames.length > 0) {
+    return gamesStore.friendsRecentGames.slice(0, 10)
+  }
+  // Fallback para atividades comunitárias
   const map = new Map<number, any>()
   for (const act of gamesStore.communityActivities) {
     if (act.game && !map.has(act.game.id)) {
       map.set(act.game.id, act.game)
     }
   }
-  return Array.from(map.values())
+  return Array.from(map.values()).slice(0, 10)
 })
 
-// 2. Mais bem avaliados
+// 2. Mais bem avaliados: Top 10 ordenado estritamente do melhor para o pior
 const topRatedGames = computed(() => {
-  const rated = gamesStore.myList.filter(ug => ug.rating && ug.rating >= 8)
-  if (rated.length > 0) {
-    return rated.map(ug => ug.game)
+  if (gamesStore.topRatedGames && gamesStore.topRatedGames.length > 0) {
+    return gamesStore.topRatedGames.slice(0, 10)
   }
-  return gamesStore.popularGames.slice().reverse()
+  return gamesStore.popularGames.slice(0, 10)
 })
 
 function goToGame(id?: number) {
@@ -459,6 +460,7 @@ async function onForceRefresh() {
   try {
     await Promise.all([
       gamesStore.fetchMyList(true),
+      gamesStore.fetchHomeHighlights(true),
       gamesStore.fetchDiscover(true),
       gamesStore.fetchCommunity(true)
     ])
@@ -470,6 +472,7 @@ async function onForceRefresh() {
 onMounted(async () => {
   await Promise.all([
     gamesStore.fetchMyList(),
+    gamesStore.fetchHomeHighlights(),
     gamesStore.fetchDiscover(),
     gamesStore.fetchCommunity()
   ])

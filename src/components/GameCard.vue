@@ -158,6 +158,10 @@ const displayRating = computed(() => {
   if (matchedUserGame.value?.rating) {
     return matchedUserGame.value.rating
   }
+  const anyGame = actualGame.value as any
+  if (anyGame?.rating) return anyGame.rating
+  if (anyGame?.community_rating) return anyGame.community_rating
+  if (anyGame?.avg_rating) return anyGame.avg_rating
   return null
 })
 </script>

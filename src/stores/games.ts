@@ -6,6 +6,8 @@ const MY_LIST_CACHE_KEY = 'capygames_my_list_cache'
 const DISCOVER_CACHE_KEY = 'capygames_discover_cache_v2'
 const COMMUNITY_CACHE_KEY = 'capygames_community_cache'
 const PROFILES_CACHE_KEY = 'capygames_profiles_cache_v1'
+const FRIENDS_RECENT_CACHE_KEY = 'capygames_friends_recent_cache_v1'
+const TOP_RATED_CACHE_KEY = 'capygames_top_rated_cache_v1'
 
 function loadFromStorage<T>(key: string, defaultValue: T): T {
   try {
@@ -63,6 +65,11 @@ export const useGamesStore = defineStore('games', () => {
 
   // 6. Profile Cache por ID de usuário
   const profilesCache = ref<Record<number, any>>(loadFromStorage(PROFILES_CACHE_KEY, {}))
+  // 7. Home Highlights (Top 10 Friends Recent & Top 10 Rated)
+  const friendsRecentGames = ref<any[]>(loadFromStorage(FRIENDS_RECENT_CACHE_KEY, []))
+  const topRatedGames = ref<any[]>(loadFromStorage(TOP_RATED_CACHE_KEY, []))
+  const isRefreshingHomeHighlights = ref(false)
+
 
   // Actions
   async function fetchMyList(force = false) {
@@ -152,6 +159,30 @@ export const useGamesStore = defineStore('games', () => {
       console.error('Erro ao buscar Atividade da Casa:', err)
     } finally {
       isRefreshingCommunity.value = false
+    }
+  }
+
+  
+  async function fetchHomeHighlights(force = false) {
+    if (!force && friendsRecentGames.value.length > 0 && topRatedGames.value.length > 0) {
+      return
+    }
+
+    isRefreshingHomeHighlights.value = true
+    try {
+      const [friendsRes, topRes] = await Promise.all([
+        capyGamesApi.getFriendsRecentGames(10),
+        capyGamesApi.getTopRatedGames(10)
+      ])
+      friendsRecentGames.value = friendsRes.data.data || []
+      topRatedGames.value = topRes.data.data || []
+
+      saveToStorage(FRIENDS_RECENT_CACHE_KEY, friendsRecentGames.value)
+      saveToStorage(TOP_RATED_CACHE_KEY, topRatedGames.value)
+    } catch (err) {
+      console.error('Erro ao buscar destaques da home:', err)
+    } finally {
+      isRefreshingHomeHighlights.value = false
     }
   }
 
@@ -260,6 +291,10 @@ export const useGamesStore = defineStore('games', () => {
     getCachedProfile,
     setCachedProfile,
 
+    friendsRecentGames,
+    topRatedGames,
+    isRefreshingHomeHighlights,
+    fetchHomeHighlights,
     invalidateAllCache
   }
 })

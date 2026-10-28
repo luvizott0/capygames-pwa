@@ -2,16 +2,7 @@
   <section v-if="items.length > 0" class="carousel-section">
     <div class="carousel-header">
       <h2 class="section-title mono">{{ title }}</h2>
-      <div v-if="viewAllRoute" class="header-right-actions">
-        <router-link
-          :to="viewAllRoute"
-          class="view-all-btn mono"
-          title="Ver lista completa"
-        >
-          <span>Ver todos</span>
-          <ChevronRight :size="14" />
-        </router-link>
-      </div>
+      
     </div>
 
     <div class="carousel-wrapper">

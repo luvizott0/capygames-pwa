@@ -194,6 +194,14 @@ export const capyGamesApi = {
     return apiClient.get<{ data: GameActivity[] }>('/capygames/feed', { params: { limit } })
   },
 
+  getFriendsRecentGames(limit = 10) {
+    return apiClient.get<{ data: any[] }>('/capygames/friends-games', { params: { limit } })
+  },
+
+  getTopRatedGames(limit = 10) {
+    return apiClient.get<{ data: any[] }>('/capygames/top-rated', { params: { limit } })
+  },
+
   getUsers() {
     return apiClient.get<{ data: any[] }>('/capygames/users')
   },
