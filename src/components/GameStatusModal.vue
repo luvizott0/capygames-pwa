@@ -40,7 +40,7 @@ const REVIEW_ASPECTS: ReviewAspectConfig[] = [
 ]
 
 const status = ref<GameStatus>('playing')
-const platform = ref('PC')
+const platform = ref('Steam')
 const hoursPlayed = ref<number>(0)
 const rating = ref<number | null>(null)
 const review = ref('')
@@ -81,8 +81,17 @@ const ratedAspectsCount = computed(() => {
   }).length
 })
 
+function normalizePlatformName(name?: string | null): string {
+  if (!name) return 'Steam'
+  const p = name.trim()
+  if (/^(pc|windows|win32|pc\s*\((steam|windows)\))$/i.test(p)) {
+    return 'Steam'
+  }
+  return p
+}
+
 const platformsList = [
-  'PC',
+  'Steam',
   'Xbox Series X|S',
   'Xbox One',
   'PlayStation 5',
@@ -111,7 +120,7 @@ watch(
         } else {
           status.value = props.userGame.status
         }
-        platform.value = props.userGame.platform || 'PC'
+        platform.value = normalizePlatformName(props.userGame.platform)
         hoursPlayed.value = props.userGame.hours_played || 0
         rating.value = props.userGame.rating ?? null
 
@@ -131,7 +140,7 @@ watch(
         isFavorite.value = props.userGame.is_favorite || false
       } else if (props.gameCandidate) {
         status.value = 'playing'
-        platform.value = props.gameCandidate.platforms?.[0] || 'PC'
+        platform.value = normalizePlatformName(props.gameCandidate.platforms?.[0])
         hoursPlayed.value = 0
         rating.value = null
         aspectRatings.value = {

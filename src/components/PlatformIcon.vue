@@ -86,7 +86,14 @@ const props = withDefaults(
   }
 )
 
-const platformName = computed(() => props.platform || 'Multiplataforma')
+const platformName = computed(() => {
+  const p = (props.platform || '').trim()
+  if (!p) return 'Multiplataforma'
+  if (/^(pc|windows|win32|pc\s*\((steam|windows)\))$/i.test(p)) {
+    return 'Steam'
+  }
+  return p
+})
 
 const iconType = computed(() => {
   const p = (props.platform || '').toLowerCase()

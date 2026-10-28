@@ -210,7 +210,7 @@
           <!-- Barra de Progresso Principal -->
           <div class="progress-bar-card">
             <div class="progress-bar-header">
-              <span class="prog-main-title">Conclusão</span>
+              <span class="prog-main-title">Conclusão (Conquistas)</span>
               <span class="prog-main-percent mono">{{ achievementPercent }}%</span>
             </div>
             <div class="detail-progress-bar">
@@ -602,13 +602,22 @@ const platformHoursSubtext = computed(() => {
   return myStatus.value?.platform || 'Todas as plataformas'
 })
 
+function normalizePlatformName(name?: string | null): string {
+  if (!name) return 'Steam'
+  const p = name.trim()
+  if (/^(pc|windows|win32|pc\s*\((steam|windows)\))$/i.test(p)) {
+    return 'Steam'
+  }
+  return p
+}
+
 const availablePlatforms = computed(() => {
   const plats = new Set<string>()
 
   // 1. Catálogo oficial do jogo
   if (game.value?.platforms && Array.isArray(game.value.platforms)) {
     for (const p of game.value.platforms) {
-      if (p && typeof p === 'string' && p.trim()) plats.add(p.trim())
+      if (p && typeof p === 'string' && p.trim()) plats.add(normalizePlatformName(p))
     }
   }
 
@@ -616,23 +625,23 @@ const availablePlatforms = computed(() => {
   if (housemates.value && Array.isArray(housemates.value)) {
     for (const hm of housemates.value) {
       if (hm.platform && typeof hm.platform === 'string' && hm.platform.trim()) {
-        plats.add(hm.platform.trim())
+        plats.add(normalizePlatformName(hm.platform))
       }
     }
   }
 
   // 3. Status e histórico de horas do usuário atual
   if (myStatus.value?.platform && typeof myStatus.value.platform === 'string') {
-    plats.add(myStatus.value.platform.trim())
+    plats.add(normalizePlatformName(myStatus.value.platform))
   }
   if (myStatus.value?.platform_hours && typeof myStatus.value.platform_hours === 'object') {
     for (const p of Object.keys(myStatus.value.platform_hours)) {
-      if (p && p.trim()) plats.add(p.trim())
+      if (p && p.trim()) plats.add(normalizePlatformName(p))
     }
   }
 
   // Ordem prioritária de exibição de plataformas
-  const order = ['PC', 'PlayStation 5', 'PlayStation 4', 'PlayStation', 'Xbox Series X|S', 'Xbox One', 'Xbox', 'Nintendo Switch', 'Steam Deck', 'Retro / Emulador']
+  const order = ['Steam', 'PlayStation 5', 'PlayStation 4', 'PlayStation', 'Xbox Series X|S', 'Xbox One', 'Xbox', 'Nintendo Switch', 'Steam Deck', 'Retro / Emulador']
   const sorted = Array.from(plats).sort((a, b) => {
     const idxA = order.indexOf(a)
     const idxB = order.indexOf(b)
@@ -642,7 +651,7 @@ const availablePlatforms = computed(() => {
     return a.localeCompare(b)
   })
 
-  return sorted.length > 0 ? sorted : ['PC']
+  return sorted.length > 0 ? sorted : ['Steam']
 })
 
 const gameFeatures = computed(() => {
@@ -667,7 +676,7 @@ const totalAchievementsCount = computed(() => {
 })
 
 const achievementPercent = computed(() => {
-  if (myStatus.value?.status === 'completed' || myStatus.value?.status === 'mastered') return 100
+  if (myStatus.value?.status === 'mastered') return 100
   if (totalAchievementsCount.value > 0) {
     return Math.min(100, Math.round((achievementsEarned.value / totalAchievementsCount.value) * 100))
   }
@@ -676,9 +685,6 @@ const achievementPercent = computed(() => {
   }
   if (myStatus.value?.progress_percentage && myStatus.value.progress_percentage > 0) {
     return myStatus.value.progress_percentage
-  }
-  if (myStatus.value?.hours_played && myStatus.value.hours_played > 0) {
-    return Math.min(95, Math.round(myStatus.value.hours_played * 4))
   }
   return 0
 })

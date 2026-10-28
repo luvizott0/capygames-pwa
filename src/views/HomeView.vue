@@ -400,19 +400,15 @@ function getUserPlayingPlatform(item: CapyUserGame): string {
     if (p.includes('xbox')) return 'Xbox'
     if (p.includes('playstation') || p.includes('ps5') || p.includes('ps4')) return 'PlayStation'
     if (p.includes('switch') || p.includes('nintendo')) return 'Nintendo Switch'
-    if (p.includes('pc') || p.includes('steam')) return 'PC'
+    if (p.includes('pc') || p.includes('steam')) return 'Steam'
     return item.platform
   }
 
-  return item.game?.platforms?.[0] || 'PC'
+  return item.game?.platforms?.[0] || 'Steam'
 }
 
 function getProgressPercent(item: CapyUserGame): number {
-  if (item.status === 'completed' || item.status === 'mastered') return 100
-  if (item.status === 'dropped') return 15
-  if (item.progress_percentage !== undefined && item.progress_percentage !== null && item.progress_percentage > 0) {
-    return item.progress_percentage
-  }
+  if (item.status === 'mastered') return 100
   if (item.achievements_total && item.achievements_total > 0) {
     const earned = item.achievements_earned || 0
     return Math.min(100, Math.round((earned / item.achievements_total) * 100))
@@ -428,14 +424,13 @@ function getProgressPercent(item: CapyUserGame): number {
       return Math.min(100, Math.round((earned / raw.achievements_count) * 100))
     }
   }
-  if (item.hours_played && item.hours_played > 0) {
-    return Math.min(95, Math.round(item.hours_played * 4))
+  if (item.progress_percentage !== undefined && item.progress_percentage !== null && item.progress_percentage > 0) {
+    return item.progress_percentage
   }
   return 0
 }
 
 function getProgressLabel(item: CapyUserGame): string {
-  if (item.status === 'completed') return 'Jogo Zerado'
   if (item.status === 'mastered') return '100% Platinado'
   if (item.achievements_total && item.achievements_total > 0) {
     return `${item.achievements_earned || 0}/${item.achievements_total} conquistas`
@@ -448,6 +443,7 @@ function getProgressLabel(item: CapyUserGame): string {
     const earnedAch = item.achievements_earned ? `${item.achievements_earned} conquistas • ` : ''
     return `${earnedAch}${item.gamerscore_earned || 0}/${item.gamerscore_total}G`
   }
+  if (item.status === 'completed') return 'Jogo Zerado'
   if (item.achievements_earned && item.achievements_earned > 0) {
     return `${item.achievements_earned} conquistas`
   }
