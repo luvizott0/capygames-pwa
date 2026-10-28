@@ -262,18 +262,25 @@ const isSubmittingAction = ref(false)
 const isStatusModalOpen = ref(false)
 const selectedGameForStatus = ref<CapyUserGame | null>(null)
 
-// Últimos 5 jogos que o usuário realmente está jogando (apenas status === 'playing')
+// Últimos 5 jogos que o usuário está jogando (prioriza playing, preenche com on_hold por data de última jogatina)
 const currentlyPlayingGames = computed(() => {
   const list = gamesStore.myList || []
-  return list
-    .filter(ug => ug.status === 'playing' || ug.status === 'on_hold')
-    .slice()
-    .sort((a, b) => {
-      const dateA = new Date(a.updated_at || a.created_at || 0).getTime()
-      const dateB = new Date(b.updated_at || b.created_at || 0).getTime()
-      return dateB - dateA
-    })
-    .slice(0, 5)
+  const playing = list.filter(ug => ug.status === 'playing')
+  const onHold = list.filter(ug => ug.status === 'on_hold')
+
+  const sortByRecent = (a: CapyUserGame, b: CapyUserGame) => {
+    const dateA = new Date(a.last_played_at || a.updated_at || a.created_at || 0).getTime()
+    const dateB = new Date(b.last_played_at || b.updated_at || b.created_at || 0).getTime()
+    return dateB - dateA
+  }
+
+  const sortedPlaying = playing.slice().sort(sortByRecent)
+  if (sortedPlaying.length >= 5) {
+    return sortedPlaying.slice(0, 5)
+  }
+
+  const sortedOnHold = onHold.slice().sort(sortByRecent)
+  return [...sortedPlaying, ...sortedOnHold].slice(0, 5)
 })
 
 // 1. Jogados pelos amigos: últimos 10 jogos jogados pelos amigos da Capihouse
@@ -371,19 +378,17 @@ async function handleStatusRemoved() {
 }
 
 function getUserPlayingPlatform(item: CapyUserGame): string {
-  if (item.source === 'xbox' || item.game?.external_source === 'xbox') {
-    return 'Xbox'
-  }
-  if (item.source === 'steam' || item.game?.external_source === 'steam') {
-    return 'PC'
-  }
-  if (item.source === 'playstation' || item.game?.external_source === 'playstation') {
-    return 'PlayStation'
-  }
-  if (item.source === 'nintendo' || item.game?.external_source === 'nintendo') {
-    return 'Nintendo Switch'
+  // 1. Se tem plataforma explícita registrada na jogatina do usuário
+  if (item.platform) {
+    const p = item.platform.toLowerCase()
+    if (p.includes('xbox')) return 'Xbox'
+    if (p.includes('playstation') || p.includes('ps5') || p.includes('ps4')) return 'PlayStation'
+    if (p.includes('switch') || p.includes('nintendo')) return 'Nintendo Switch'
+    if (p.includes('pc') || p.includes('steam')) return 'Steam'
+    return item.platform
   }
 
+  // 2. Se tem platform_hours, usa a plataforma com mais horas jogadas
   if (item.platform_hours && typeof item.platform_hours === 'object') {
     let maxPlat = ''
     let maxHours = -1
@@ -396,14 +401,17 @@ function getUserPlayingPlatform(item: CapyUserGame): string {
     if (maxPlat) return maxPlat
   }
 
-  if (item.platform) {
-    const p = item.platform.toLowerCase()
-    if (p.includes('xbox')) return 'Xbox'
-    if (p.includes('playstation') || p.includes('ps5') || p.includes('ps4')) return 'PlayStation'
-    if (p.includes('switch') || p.includes('nintendo')) return 'Nintendo Switch'
-    if (p.includes('pc') || p.includes('steam')) return 'Steam'
-    return item.platform
-  }
+  // 3. Se veio de sincronização específica (item.source)
+  if (item.source === 'xbox') return 'Xbox'
+  if (item.source === 'steam') return 'Steam'
+  if (item.source === 'playstation') return 'PlayStation'
+  if (item.source === 'nintendo') return 'Nintendo Switch'
+
+  // 4. Fallback para fonte externa do catálogo do jogo
+  if (item.game?.external_source === 'xbox') return 'Xbox'
+  if (item.game?.external_source === 'steam') return 'Steam'
+  if (item.game?.external_source === 'playstation') return 'PlayStation'
+  if (item.game?.external_source === 'nintendo') return 'Nintendo Switch'
 
   return item.game?.platforms?.[0] || 'Steam'
 }
@@ -458,6 +466,11 @@ function getProgressLabel(item: CapyUserGame): string {
 async function onForceRefresh() {
   isRefreshing.value = true
   try {
+    // Sincroniza em segundo plano contas conectadas (Xbox, Steam) para puxar novas jogatinas antes de atualizar a lista
+    await Promise.allSettled([
+      capyGamesApi.syncXbox(),
+      capyGamesApi.syncSteam()
+    ])
     await Promise.all([
       gamesStore.fetchMyList(true),
       gamesStore.fetchHomeHighlights(true),

@@ -57,6 +57,7 @@ export interface CapyUserGame {
   progress_percentage?: number
   is_favorite: boolean
   source?: string
+  last_played_at?: string
   started_at?: string
   completed_at?: string
   created_at: string
