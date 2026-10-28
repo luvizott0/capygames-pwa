@@ -139,6 +139,35 @@
           </div>
         </div>
 
+        <!-- Médias da Comunidade por Aspecto -->
+        <div v-if="hasAnyAspect(communityAspectRatings)" class="detail-section community-aspects-section">
+          <div class="section-title-row">
+            <h3 class="section-title">Médias da Capihouse por Aspecto</h3>
+            <span class="section-badge-info mono">{{ totalRatings }} {{ totalRatings === 1 ? 'avaliação' : 'avaliações' }}</span>
+          </div>
+          <div class="aspects-bars-grid">
+            <div
+              v-for="aspect in getAspectList(communityAspectRatings)"
+              :key="aspect.key"
+              class="aspect-bar-item"
+            >
+              <div class="aspect-bar-header">
+                <span class="aspect-bar-label">
+                  <span class="aspect-bar-icon">{{ aspect.icon }}</span>
+                  <span>{{ aspect.label }}</span>
+                </span>
+                <span class="aspect-bar-score mono">{{ aspect.score.toFixed(1) }}</span>
+              </div>
+              <div class="aspect-progress-track">
+                <div
+                  class="aspect-progress-fill"
+                  :style="{ width: `${Math.min(100, Math.round(aspect.score * 10))}%` }"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Amigos que jogam -->
         <div v-if="housemates.length > 0" class="detail-section housemates-section">
           <h3 class="section-title">Amigos que jogam</h3>
@@ -259,17 +288,21 @@
           </div>
         </div>
 
-        <!-- Plataformas Disponíveis para Jogar -->
+        <!-- Plataformas Disponíveis para Jogar (Catálogo Global) -->
         <div v-if="availablePlatforms.length > 0" class="detail-section platforms-section">
-          <h3 class="section-title">Onde Jogar</h3>
+          <div class="section-title-row">
+            <h3 class="section-title">Onde Jogar</h3>
+            <span class="section-badge-info mono">{{ availablePlatforms.length }} {{ availablePlatforms.length === 1 ? 'plataforma' : 'plataformas' }}</span>
+          </div>
           <div class="platforms-chips-row">
             <div
               v-for="plat in availablePlatforms"
               :key="plat"
-              class="platform-chip platform-icon-only"
-              :title="plat"
+              class="platform-chip"
+              :title="`Disponível para ${plat}`"
             >
-              <PlatformIcon :platform="plat" :size="20" />
+              <PlatformIcon :platform="plat" :size="16" />
+              <span>{{ plat }}</span>
             </div>
           </div>
         </div>
@@ -313,28 +346,61 @@
         </div>
 
         <!-- Avaliações dos Moradores -->
-        <div v-if="myStatus?.review || housematesWithReviews.length > 0" class="detail-section reviews-section">
+        <div v-if="myStatus?.review || myStatus?.rating || housematesWithReviewsOrRatings.length > 0" class="detail-section reviews-section">
           <h3 class="section-title">Avaliações & Reviews</h3>
           <div class="episodes-list">
-            <div v-if="myStatus?.review" class="review-card highlight">
+            <!-- Review do Usuário Logado -->
+            <div v-if="myStatus?.review || myStatus?.rating" class="review-card highlight">
               <div class="review-card-header">
-                <span class="review-author mono">Sua Análise</span>
+                <span class="review-author mono">Sua Avaliação</span>
                 <span v-if="myStatus.rating" class="badge-rating mono">★ {{ Number(myStatus.rating).toFixed(1) }}</span>
               </div>
-              <p class="review-body">"{{ myStatus.review }}"</p>
+
+              <!-- Breakdown de Aspectos do Usuário -->
+              <div v-if="hasAnyAspect(myStatus.aspect_ratings)" class="aspects-summary-grid">
+                <div
+                  v-for="aspect in getAspectList(myStatus.aspect_ratings)"
+                  :key="aspect.key"
+                  class="aspect-summary-chip"
+                >
+                  <span class="aspect-chip-icon">{{ aspect.icon }}</span>
+                  <span class="aspect-chip-name">{{ aspect.label }}:</span>
+                  <span class="aspect-chip-score mono">{{ aspect.score }}</span>
+                </div>
+              </div>
+
+              <p v-if="myStatus.review" class="review-body">"{{ myStatus.review }}"</p>
             </div>
 
+            <!-- Reviews dos Moradores -->
             <div
-              v-for="hm in housematesWithReviews"
+              v-for="hm in housematesWithReviewsOrRatings"
               :key="hm.user.id"
               class="review-card"
               @click="goToProfile(hm.user.id)"
             >
               <div class="review-card-header">
-                <span class="review-author">{{ hm.user.name }}</span>
+                <div class="hm-header-user">
+                  <span class="review-author">{{ hm.user.name }}</span>
+                  <span v-if="hm.platform" class="review-plat-badge mono">{{ hm.platform }}</span>
+                </div>
                 <span v-if="hm.rating" class="badge-rating mono">★ {{ Number(hm.rating).toFixed(1) }}</span>
               </div>
-              <p class="review-body">"{{ hm.review }}"</p>
+
+              <!-- Breakdown de Aspectos do Morador -->
+              <div v-if="hasAnyAspect(hm.aspect_ratings)" class="aspects-summary-grid">
+                <div
+                  v-for="aspect in getAspectList(hm.aspect_ratings)"
+                  :key="aspect.key"
+                  class="aspect-summary-chip"
+                >
+                  <span class="aspect-chip-icon">{{ aspect.icon }}</span>
+                  <span class="aspect-chip-name">{{ aspect.label }}:</span>
+                  <span class="aspect-chip-score mono">{{ aspect.score }}</span>
+                </div>
+              </div>
+
+              <p v-if="hm.review" class="review-body">"{{ hm.review }}"</p>
             </div>
           </div>
         </div>
@@ -401,7 +467,7 @@ import {
   Award,
   Clock
 } from 'lucide-vue-next'
-import { capyGamesApi, type CapyGame, type CapyUserGame } from '@/api/capygames'
+import { capyGamesApi, type CapyGame, type CapyUserGame, type GameAspectRatings } from '@/api/capygames'
 import { useGamesStore } from '@/stores/games'
 import GameStatusModal from '@/components/GameStatusModal.vue'
 import ImageViewerModal from '@/components/ImageViewerModal.vue'
@@ -418,6 +484,7 @@ const errorMessage = ref<string | null>(null)
 const game = ref<CapyGame | null>(null)
 const myStatus = ref<CapyUserGame | null>(null)
 const communityRating = ref<number | null>(null)
+const communityAspectRatings = ref<GameAspectRatings | null>(null)
 const totalRatings = ref(0)
 const housemates = ref<any[]>([])
 const isTogglingList = ref(false)
@@ -426,8 +493,50 @@ const isModalOpen = ref(false)
 const isImageViewerOpen = ref(false)
 const currentImageUrl = ref('')
 
-const housematesWithReviews = computed(() => {
-  return housemates.value.filter(hm => hm.review && hm.user.id !== myStatus.value?.user_id)
+interface AspectDisplayItem {
+  key: keyof GameAspectRatings
+  label: string
+  icon: string
+  score: number
+}
+
+const ASPECT_METADATA: Record<string, { label: string; icon: string }> = {
+  gameplay: { label: 'Jogabilidade', icon: '🎮' },
+  story: { label: 'Narrativa', icon: '📖' },
+  graphics: { label: 'Gráficos', icon: '🎨' },
+  sound: { label: 'Trilha Sonora', icon: '🎵' },
+  performance: { label: 'Desempenho', icon: '⚡' },
+  replay: { label: 'Fator Replay', icon: '🔁' },
+  level_design: { label: 'Level Design', icon: '🗺️' },
+  innovation: { label: 'Inovação', icon: '💡' }
+}
+
+function hasAnyAspect(aspects?: GameAspectRatings | null): boolean {
+  if (!aspects || typeof aspects !== 'object') return false
+  return Object.values(aspects).some(v => v !== null && v !== undefined && !isNaN(Number(v)))
+}
+
+function getAspectList(aspects?: GameAspectRatings | null): AspectDisplayItem[] {
+  if (!aspects || typeof aspects !== 'object') return []
+  const list: AspectDisplayItem[] = []
+  for (const [key, meta] of Object.entries(ASPECT_METADATA)) {
+    const val = (aspects as any)[key]
+    if (val !== null && val !== undefined && !isNaN(Number(val))) {
+      list.push({
+        key: key as keyof GameAspectRatings,
+        label: meta.label,
+        icon: meta.icon,
+        score: Number(val)
+      })
+    }
+  }
+  return list
+}
+
+const housematesWithReviewsOrRatings = computed(() => {
+  return housemates.value.filter(
+    hm => (hm.review || hm.rating !== null || hasAnyAspect(hm.aspect_ratings)) && hm.user.id !== myStatus.value?.user_id
+  )
 })
 
 const formattedReleaseDate = computed(() => {
@@ -494,9 +603,46 @@ const platformHoursSubtext = computed(() => {
 })
 
 const availablePlatforms = computed(() => {
-  return game.value?.platforms && game.value.platforms.length > 0
-    ? game.value.platforms
-    : ['PC']
+  const plats = new Set<string>()
+
+  // 1. Catálogo oficial do jogo
+  if (game.value?.platforms && Array.isArray(game.value.platforms)) {
+    for (const p of game.value.platforms) {
+      if (p && typeof p === 'string' && p.trim()) plats.add(p.trim())
+    }
+  }
+
+  // 2. Plataformas de todos os moradores que possuem/jogam
+  if (housemates.value && Array.isArray(housemates.value)) {
+    for (const hm of housemates.value) {
+      if (hm.platform && typeof hm.platform === 'string' && hm.platform.trim()) {
+        plats.add(hm.platform.trim())
+      }
+    }
+  }
+
+  // 3. Status e histórico de horas do usuário atual
+  if (myStatus.value?.platform && typeof myStatus.value.platform === 'string') {
+    plats.add(myStatus.value.platform.trim())
+  }
+  if (myStatus.value?.platform_hours && typeof myStatus.value.platform_hours === 'object') {
+    for (const p of Object.keys(myStatus.value.platform_hours)) {
+      if (p && p.trim()) plats.add(p.trim())
+    }
+  }
+
+  // Ordem prioritária de exibição de plataformas
+  const order = ['PC', 'PlayStation 5', 'PlayStation 4', 'PlayStation', 'Xbox Series X|S', 'Xbox One', 'Xbox', 'Nintendo Switch', 'Steam Deck', 'Retro / Emulador']
+  const sorted = Array.from(plats).sort((a, b) => {
+    const idxA = order.indexOf(a)
+    const idxB = order.indexOf(b)
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB
+    if (idxA !== -1) return -1
+    if (idxB !== -1) return 1
+    return a.localeCompare(b)
+  })
+
+  return sorted.length > 0 ? sorted : ['PC']
 })
 
 const gameFeatures = computed(() => {
@@ -556,6 +702,7 @@ async function fetchGameDetails() {
     game.value = data.game
     myStatus.value = data.my_status
     communityRating.value = data.community_rating
+    communityAspectRatings.value = data.community_aspect_ratings || null
     totalRatings.value = data.total_ratings
     housemates.value = data.housemates || []
   } catch (err: any) {
@@ -1447,6 +1594,129 @@ onMounted(() => {
   font-size: 0.84rem;
   font-weight: 600;
   color: var(--text-main);
+}
+
+.hm-header-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-plat-badge {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  background: var(--bg-surface-elevated);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+}
+
+.aspects-summary-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.aspect-summary-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  font-size: 0.72rem;
+}
+
+.aspect-chip-icon {
+  font-size: 0.8rem;
+}
+
+.aspect-chip-name {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.aspect-chip-score {
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+/* Médias Comunitárias por Aspecto */
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-badge-info {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  background: var(--bg-surface-elevated);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+}
+
+.aspects-bars-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 640px) {
+  .aspects-bars-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 20px;
+  }
+}
+
+.aspect-bar-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.aspect-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+}
+
+.aspect-bar-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.aspect-bar-icon {
+  font-size: 0.85rem;
+}
+
+.aspect-bar-score {
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.aspect-progress-track {
+  width: 100%;
+  height: 6px;
+  background-color: var(--bg-surface-elevated);
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.aspect-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  border-radius: 3px;
+  transition: width 0.4s ease;
 }
 
 .review-body {

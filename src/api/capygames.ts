@@ -26,6 +26,17 @@ export interface CapyGame {
 
 export type GameStatus = 'plan_to_play' | 'playing' | 'completed' | 'mastered' | 'dropped' | 'on_hold'
 
+export interface GameAspectRatings {
+  gameplay?: number | null
+  story?: number | null
+  graphics?: number | null
+  sound?: number | null
+  performance?: number | null
+  replay?: number | null
+  level_design?: number | null
+  innovation?: number | null
+}
+
 export interface CapyUserGame {
   id: number
   user_id: number
@@ -37,6 +48,7 @@ export interface CapyUserGame {
   hours_played: number
   platform_hours?: Record<string, number>
   rating?: number | null
+  aspect_ratings?: GameAspectRatings | null
   review?: string | null
   achievements_earned?: number
   achievements_total?: number
@@ -123,6 +135,7 @@ export interface SetGameStatusPayload {
   platform?: string
   hours_played?: number
   rating?: number | null
+  aspect_ratings?: GameAspectRatings | null
   review?: string | null
   is_favorite?: boolean
   in_list?: boolean

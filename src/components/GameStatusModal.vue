@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { capyGamesApi, type CapyUserGame, type GameStatus, type GameSearchResult } from '@/api/capygames'
+import { ref, watch, computed } from 'vue'
+import {
+  capyGamesApi,
+  type CapyUserGame,
+  type GameStatus,
+  type GameSearchResult,
+  type GameAspectRatings
+} from '@/api/capygames'
 import { X, Star, Trash2, Check, Clock } from 'lucide-vue-next'
 
 const props = defineProps<{
@@ -15,6 +21,24 @@ const emit = defineEmits<{
   (e: 'removed', id: number): void
 }>()
 
+export interface ReviewAspectConfig {
+  key: keyof GameAspectRatings
+  label: string
+  icon: string
+  description: string
+}
+
+const REVIEW_ASPECTS: ReviewAspectConfig[] = [
+  { key: 'gameplay', label: 'Jogabilidade', icon: '🎮', description: 'Controles, fluidez e mecânicas' },
+  { key: 'story', label: 'Narrativa', icon: '📖', description: 'História, roteiro e personagens' },
+  { key: 'graphics', label: 'Gráficos', icon: '🎨', description: 'Fidelidade visual, arte e estética' },
+  { key: 'sound', label: 'Trilha Sonora', icon: '🎵', description: 'Música, dublagem e áudio' },
+  { key: 'performance', label: 'Desempenho', icon: '⚡', description: 'FPS estável, bugs e polimento' },
+  { key: 'replay', label: 'Fator Replay', icon: '🔁', description: 'Conteúdo, longevidade e endgame' },
+  { key: 'level_design', label: 'Level Design', icon: '🗺️', description: 'Design de fases, mapas e exploração' },
+  { key: 'innovation', label: 'Inovação', icon: '💡', description: 'Originalidade e criatividade' }
+]
+
 const status = ref<GameStatus>('playing')
 const platform = ref('PC')
 const hoursPlayed = ref<number>(0)
@@ -23,6 +47,39 @@ const review = ref('')
 const isFavorite = ref(false)
 const isSubmitting = ref(false)
 const errorMsg = ref('')
+
+const aspectRatings = ref<GameAspectRatings>({
+  gameplay: null,
+  story: null,
+  graphics: null,
+  sound: null,
+  performance: null,
+  replay: null,
+  level_design: null,
+  innovation: null
+})
+
+const calculatedAverage = computed<number | null>(() => {
+  const scores: number[] = []
+  for (const item of REVIEW_ASPECTS) {
+    const val = aspectRatings.value[item.key]
+    if (val !== null && val !== undefined && !isNaN(Number(val))) {
+      scores.push(Number(val))
+    }
+  }
+  if (scores.length === 0) {
+    return rating.value ?? null
+  }
+  const sum = scores.reduce((acc, curr) => acc + curr, 0)
+  return Number((sum / scores.length).toFixed(1))
+})
+
+const ratedAspectsCount = computed(() => {
+  return REVIEW_ASPECTS.filter(a => {
+    const val = aspectRatings.value[a.key]
+    return val !== null && val !== undefined && !isNaN(Number(val))
+  }).length
+})
 
 const platformsList = [
   'PC',
@@ -57,6 +114,19 @@ watch(
         platform.value = props.userGame.platform || 'PC'
         hoursPlayed.value = props.userGame.hours_played || 0
         rating.value = props.userGame.rating ?? null
+
+        const ar = props.userGame.aspect_ratings || {}
+        aspectRatings.value = {
+          gameplay: ar.gameplay ?? null,
+          story: ar.story ?? null,
+          graphics: ar.graphics ?? null,
+          sound: ar.sound ?? null,
+          performance: ar.performance ?? null,
+          replay: ar.replay ?? null,
+          level_design: ar.level_design ?? null,
+          innovation: ar.innovation ?? null
+        }
+
         review.value = props.userGame.review || ''
         isFavorite.value = props.userGame.is_favorite || false
       } else if (props.gameCandidate) {
@@ -64,6 +134,16 @@ watch(
         platform.value = props.gameCandidate.platforms?.[0] || 'PC'
         hoursPlayed.value = 0
         rating.value = null
+        aspectRatings.value = {
+          gameplay: null,
+          story: null,
+          graphics: null,
+          sound: null,
+          performance: null,
+          replay: null,
+          level_design: null,
+          innovation: null
+        }
         review.value = ''
         isFavorite.value = false
       }
@@ -94,7 +174,8 @@ async function handleSave() {
       status: status.value,
       platform: platform.value,
       hours_played: Number(hoursPlayed.value) || 0,
-      rating: rating.value !== null ? Number(rating.value) : null,
+      rating: calculatedAverage.value !== null ? Number(calculatedAverage.value) : null,
+      aspect_ratings: aspectRatings.value,
       review: review.value.trim() ? review.value.trim() : null,
       is_favorite: isFavorite.value
     }
@@ -125,12 +206,16 @@ async function handleRemove() {
   }
 }
 
-function setScore(score: number) {
-  if (rating.value === score) {
-    rating.value = null
+function setAspectScore(key: keyof GameAspectRatings, score: number) {
+  if (aspectRatings.value[key] === score) {
+    aspectRatings.value[key] = null
   } else {
-    rating.value = score
+    aspectRatings.value[key] = score
   }
+}
+
+function clearAspectScore(key: keyof GameAspectRatings) {
+  aspectRatings.value[key] = null
 }
 </script>
 
@@ -200,31 +285,78 @@ function setScore(score: number) {
           </div>
         </div>
 
-        <!-- Avaliação / Nota de 1 a 10 -->
-        <div class="form-group">
-          <div class="label-with-val">
-            <label class="form-label">Nota Pessoal (1 a 10)</label>
-            <span v-if="rating" class="rating-display mono">
-              <Star :size="14" fill="#fbbf24" color="#fbbf24" />
-              {{ rating.toFixed(1) }} / 10
-            </span>
-            <span v-else class="text-muted text-xs">Sem nota</span>
+        <!-- Avaliação por Aspectos (Nota Média de 1 a 10) -->
+        <div class="form-group review-aspects-group">
+          <div class="review-aspects-header">
+            <div>
+              <label class="form-label mb-0">Avaliação por Aspectos</label>
+              <p class="form-hint-text">Avalie de 1 a 10 cada aspecto. A nota final é calculada automaticamente pela média.</p>
+            </div>
+            <!-- Placar da Média Final -->
+            <div class="final-score-card mono" :class="{ 'has-score': calculatedAverage !== null }">
+              <Star :size="16" fill="currentColor" class="star-icon" />
+              <div class="final-score-info">
+                <span class="final-score-val">
+                  {{ calculatedAverage !== null ? calculatedAverage.toFixed(1) : '--' }}
+                  <span class="final-score-max">/10</span>
+                </span>
+                <span class="final-score-count">
+                  {{ ratedAspectsCount > 0 ? `${ratedAspectsCount} ${ratedAspectsCount === 1 ? 'aspecto' : 'aspectos'}` : 'Sem nota' }}
+                </span>
+              </div>
+            </div>
           </div>
 
-          <div class="ratings-bar">
-            <button
-              v-for="val in 10"
-              :key="val"
-              type="button"
-              class="rating-box mono"
-              :class="{
-                selected: rating !== null && rating >= val,
-                exact: rating === val
-              }"
-              @click="setScore(val)"
+          <!-- Grade de Aspectos -->
+          <div class="aspects-list">
+            <div
+              v-for="aspect in REVIEW_ASPECTS"
+              :key="aspect.key"
+              class="aspect-card"
+              :class="{ 'aspect-rated': aspectRatings[aspect.key] !== null }"
             >
-              {{ val }}
-            </button>
+              <div class="aspect-header">
+                <div class="aspect-info">
+                  <span class="aspect-icon">{{ aspect.icon }}</span>
+                  <span class="aspect-label">{{ aspect.label }}</span>
+                  <span class="aspect-desc">{{ aspect.description }}</span>
+                </div>
+                <div class="aspect-score-badge">
+                  <span v-if="aspectRatings[aspect.key] !== null" class="score-pill mono">
+                    {{ aspectRatings[aspect.key] }}/10
+                  </span>
+                  <span v-else class="score-pill-na">
+                    N/A
+                  </span>
+                  <button
+                    v-if="aspectRatings[aspect.key] !== null"
+                    type="button"
+                    class="btn-clear-aspect"
+                    title="Remover nota deste aspecto"
+                    @click="clearAspectScore(aspect.key)"
+                  >
+                    <X :size="12" />
+                  </button>
+                </div>
+              </div>
+
+              <!-- Seletor de Notas de 1 a 10 -->
+              <div class="ratings-bar compact-bar">
+                <button
+                  v-for="val in 10"
+                  :key="val"
+                  type="button"
+                  class="rating-box mono"
+                  :class="{
+                    selected: aspectRatings[aspect.key] !== null && (aspectRatings[aspect.key] as number) >= val,
+                    exact: aspectRatings[aspect.key] === val
+                  }"
+                  @click="setAspectScore(aspect.key, val)"
+                >
+                  {{ val }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -504,6 +636,187 @@ function setScore(score: number) {
 .form-textarea {
   resize: vertical;
   line-height: 1.4;
+}
+
+.review-aspects-group {
+  margin-top: 6px;
+}
+
+.review-aspects-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.form-hint-text {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+  margin-bottom: 0;
+}
+
+.final-score-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.final-score-card.has-score {
+  border-color: rgba(245, 197, 24, 0.5);
+  background: rgba(245, 197, 24, 0.08);
+  color: #fbbf24;
+}
+
+.final-score-card.has-score .star-icon {
+  color: #fbbf24;
+  fill: #fbbf24;
+}
+
+.final-score-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.final-score-val {
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--text-main);
+}
+
+.final-score-card.has-score .final-score-val {
+  color: #fbbf24;
+}
+
+.final-score-max {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.final-score-count {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.aspects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.aspect-card {
+  padding: 10px 12px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.aspect-card:hover {
+  border-color: rgba(245, 197, 24, 0.3);
+}
+
+.aspect-card.aspect-rated {
+  border-color: rgba(245, 197, 24, 0.4);
+  background: rgba(245, 197, 24, 0.03);
+}
+
+.aspect-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+
+.aspect-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.aspect-icon {
+  font-size: 0.95rem;
+}
+
+.aspect-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.aspect-desc {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  display: none;
+}
+
+@media (min-width: 500px) {
+  .aspect-desc {
+    display: inline;
+  }
+}
+
+.aspect-score-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.score-pill {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #fbbf24;
+  background: rgba(245, 197, 24, 0.15);
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+}
+
+.score-pill-na {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  border: 1px dashed var(--color-border);
+}
+
+.btn-clear-aspect {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  color: var(--text-muted);
+  transition: all 0.15s;
+}
+
+.btn-clear-aspect:hover {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.compact-bar .rating-box {
+  padding: 7px 0;
+  font-size: 0.78rem;
 }
 
 .rating-display {

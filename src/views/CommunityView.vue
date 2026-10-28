@@ -122,6 +122,19 @@
                 </div>
               </div>
 
+              <!-- Breakdown dos Aspectos Avaliados (se houver) -->
+              <div v-if="act.metadata?.aspect_ratings && hasAnyAspect(act.metadata.aspect_ratings)" class="aspects-summary-grid">
+                <div
+                  v-for="aspect in getAspectList(act.metadata.aspect_ratings)"
+                  :key="aspect.key"
+                  class="aspect-summary-chip"
+                >
+                  <span class="aspect-chip-icon">{{ aspect.icon }}</span>
+                  <span class="aspect-chip-name">{{ aspect.label }}:</span>
+                  <span class="aspect-chip-score mono">{{ aspect.score }}</span>
+                </div>
+              </div>
+
               <!-- Análise / Review -->
               <div v-if="act.content" class="comment-box" @click.stop>
                 <div class="comment-text-wrapper">
@@ -150,6 +163,39 @@ const router = useRouter()
 const gamesStore = useGamesStore()
 const houseUsers = ref<any[]>([])
 const failedAvatars = reactive<Record<string, boolean>>({})
+
+const ASPECT_METADATA: Record<string, { label: string; icon: string }> = {
+  gameplay: { label: 'Jogabilidade', icon: '🎮' },
+  story: { label: 'Narrativa', icon: '📖' },
+  graphics: { label: 'Gráficos', icon: '🎨' },
+  sound: { label: 'Trilha Sonora', icon: '🎵' },
+  performance: { label: 'Desempenho', icon: '⚡' },
+  replay: { label: 'Fator Replay', icon: '🔁' },
+  level_design: { label: 'Level Design', icon: '🗺️' },
+  innovation: { label: 'Inovação', icon: '💡' }
+}
+
+function hasAnyAspect(aspects?: any): boolean {
+  if (!aspects || typeof aspects !== 'object') return false
+  return Object.values(aspects).some(v => v !== null && v !== undefined && !isNaN(Number(v)))
+}
+
+function getAspectList(aspects?: any): Array<{ key: string; label: string; icon: string; score: number }> {
+  if (!aspects || typeof aspects !== 'object') return []
+  const list: Array<{ key: string; label: string; icon: string; score: number }> = []
+  for (const [key, meta] of Object.entries(ASPECT_METADATA)) {
+    const val = aspects[key]
+    if (val !== null && val !== undefined && !isNaN(Number(val))) {
+      list.push({
+        key,
+        label: meta.label,
+        icon: meta.icon,
+        score: Number(val)
+      })
+    }
+  }
+  return list
+}
 
 async function fetchUsers() {
   try {
@@ -506,6 +552,38 @@ onMounted(() => {
 
 .rating-badge-row {
   display: flex;
+}
+
+.aspects-summary-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 6px 0 8px;
+}
+
+.aspect-summary-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 2px 7px;
+  font-size: 0.72rem;
+}
+
+.aspect-chip-icon {
+  font-size: 0.78rem;
+}
+
+.aspect-chip-name {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.aspect-chip-score {
+  font-weight: 700;
+  color: var(--color-accent);
 }
 
 .loading-state, .empty-state {
