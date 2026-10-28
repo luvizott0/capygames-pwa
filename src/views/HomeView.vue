@@ -296,7 +296,7 @@ const topRatedGames = computed(() => {
   if (gamesStore.topRatedGames && gamesStore.topRatedGames.length > 0) {
     return gamesStore.topRatedGames.slice(0, 10)
   }
-  return gamesStore.popularGames.slice(0, 10)
+  return []
 })
 
 function goToGame(id?: number) {
